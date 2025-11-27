@@ -1,34 +1,53 @@
 import { supabase } from './supabaseClient'
 
 // Database helper functions using Supabase
+// Adaptado al esquema actual de Supabase
 export const db = {
   admin: {
     findUnique: async ({ where }: any) => {
-      const { data, error } = await supabase
-        .from('Admin')
-        .select('*')
-        .eq('id', where.id || '')
-        .eq('email', where.email || '')
-        .single()
+      let query = supabase.from('team_members').select('*')
+      if (where.id) query = query.eq('id', where.id)
+      if (where.email) query = query.eq('email', where.email)
+      const { data, error } = await query.single()
       if (error) throw error
-      return data
+      // Map to admin format
+      return data ? {
+        id: data.id?.toString(),
+        email: data.email || '',
+        password: '', // Password not stored in team_members
+        name: data.name,
+        rol: data.role || 'admin',
+        activo: data.is_active
+      } : null
     },
     findMany: async ({ where, orderBy }: any = {}) => {
-      let query = supabase.from('Admin').select('*')
-      if (where?.activo !== undefined) query = query.eq('activo', where.activo)
+      let query = supabase.from('team_members').select('*')
+      if (where?.activo !== undefined) query = query.eq('is_active', where.activo)
       if (orderBy) {
         const field = Object.keys(orderBy)[0]
         const direction = orderBy[field] === 'asc'
-        query = query.order(field, { ascending: direction })
+        query = query.order(field === 'name' ? 'name' : field, { ascending: direction })
       }
       const { data, error } = await query
       if (error) throw error
-      return data
+      return data?.map(d => ({
+        id: d.id?.toString(),
+        email: d.email || '',
+        password: '',
+        name: d.name,
+        rol: d.role || 'admin',
+        activo: d.is_active
+      })) || []
     },
     create: async ({ data }: any) => {
       const { data: result, error } = await supabase
-        .from('Admin')
-        .insert(data)
+        .from('team_members')
+        .insert({
+          name: data.name,
+          email: data.email,
+          role: data.rol,
+          is_active: data.activo
+        })
         .select()
         .single()
       if (error) throw error
@@ -36,8 +55,13 @@ export const db = {
     },
     update: async ({ where, data }: any) => {
       const { data: result, error } = await supabase
-        .from('Admin')
-        .update(data)
+        .from('team_members')
+        .update({
+          name: data.name,
+          email: data.email,
+          role: data.rol,
+          is_active: data.activo
+        })
         .eq('id', where.id)
         .select()
         .single()
@@ -47,7 +71,7 @@ export const db = {
   },
   category: {
     findMany: async ({ where, orderBy }: any = {}) => {
-      let query = supabase.from('Category').select('*')
+      let query = supabase.from('service_categories').select('*')
       if (where?.active !== undefined) query = query.eq('active', where.active)
       if (orderBy) {
         const field = Object.keys(orderBy)[0]
@@ -56,12 +80,22 @@ export const db = {
       }
       const { data, error } = await query
       if (error) throw error
-      return data
+      return data?.map(d => ({
+        id: d.id?.toString(),
+        name: d.name,
+        slug: d.name.toLowerCase().replace(/\s+/g, '-'),
+        active: d.active,
+        order: d.display_order
+      })) || []
     },
     create: async ({ data }: any) => {
       const { data: result, error } = await supabase
-        .from('Category')
-        .insert(data)
+        .from('service_categories')
+        .insert({
+          name: data.name,
+          description: data.description,
+          active: data.active
+        })
         .select()
         .single()
       if (error) throw error
@@ -70,10 +104,10 @@ export const db = {
   },
   service: {
     findMany: async ({ where, include, orderBy }: any = {}) => {
-      let query = supabase.from('Service').select(include?.category ? '*, Category(*)' : '*')
+      let query = supabase.from('services').select('*')
       if (where?.id?.in) query = query.in('id', where.id.in)
       if (where?.active !== undefined) query = query.eq('active', where.active)
-      if (where?.categoryId) query = query.eq('categoryId', where.categoryId)
+      if (where?.categoryId) query = query.eq('category', where.categoryId)
       if (orderBy) {
         const field = Object.keys(orderBy)[0]
         const direction = orderBy[field] === 'asc'
@@ -81,48 +115,21 @@ export const db = {
       }
       const { data, error } = await query
       if (error) throw error
-      return data
+      return data?.map(d => ({
+        id: d.id?.toString(),
+        name: d.name,
+        description: d.description,
+        price: d.price,
+        duration: d.duration_minutes,
+        category: d.category,
+        categoryId: d.category,
+        active: d.active
+      })) || []
     },
-    findUnique: async ({ where }: any) => {
-      const { data, error } = await supabase
-        .from('Service')
-        .select('*, Category(*)')
-        .eq('id', where.id)
-        .single()
-      if (error) throw error
-      return data
-    },
-    create: async ({ data, include }: any) => {
-      const { data: result, error } = await supabase
-        .from('Service')
-        .insert(data)
-        .select(include?.category ? '*, Category(*)' : '*')
-        .single()
-      if (error) throw error
-      return result
-    },
-    update: async ({ where, data }: any) => {
-      const { data: result, error } = await supabase
-        .from('Service')
-        .update(data)
-        .eq('id', where.id)
-        .select('*, Category(*)')
-        .single()
-      if (error) throw error
-      return result
-    },
-    delete: async ({ where }: any) => {
-      const { error } = await supabase
-        .from('Service')
-        .delete()
-        .eq('id', where.id)
-      if (error) throw error
-    },
-  },
   staff: {
     findMany: async ({ where, orderBy }: any = {}) => {
-      let query = supabase.from('Staff').select('*')
-      if (where?.active !== undefined) query = query.eq('active', where.active)
+      let query = supabase.from('team_members').select('*')
+      if (where?.active !== undefined) query = query.eq('is_active', where.active)
       if (orderBy) {
         const field = Object.keys(orderBy)[0]
         const direction = orderBy[field] === 'asc'
@@ -130,21 +137,49 @@ export const db = {
       }
       const { data, error } = await query
       if (error) throw error
-      return data
+      return data?.map(d => ({
+        id: d.id?.toString(),
+        name: d.name,
+        email: d.email,
+        phone: d.phone,
+        specialty: d.specialty,
+        bio: d.bio,
+        photoUrl: d.image,
+        active: d.is_active,
+        workSchedule: '{}'
+      })) || []
     },
     findUnique: async ({ where }: any) => {
       const { data, error } = await supabase
-        .from('Staff')
+        .from('team_members')
         .select('*')
         .eq('id', where.id)
         .single()
       if (error) throw error
-      return data
+      return data ? {
+        id: data.id?.toString(),
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        specialty: data.specialty,
+        bio: data.bio,
+        photoUrl: data.image,
+        active: data.is_active,
+        workSchedule: '{}'
+      } : null
     },
     create: async ({ data }: any) => {
       const { data: result, error } = await supabase
-        .from('Staff')
-        .insert(data)
+        .from('team_members')
+        .insert({
+          name: data.name,
+          email: data.email,
+          phone: data.phone,
+          specialty: data.specialty,
+          bio: data.bio,
+          image: data.photoUrl,
+          is_active: data.active
+        })
         .select()
         .single()
       if (error) throw error
@@ -152,8 +187,16 @@ export const db = {
     },
     update: async ({ where, data }: any) => {
       const { data: result, error } = await supabase
-        .from('Staff')
-        .update(data)
+        .from('team_members')
+        .update({
+          name: data.name,
+          email: data.email,
+          phone: data.phone,
+          specialty: data.specialty,
+          bio: data.bio,
+          image: data.photoUrl,
+          is_active: data.active
+        })
         .eq('id', where.id)
         .select()
         .single()
@@ -163,17 +206,13 @@ export const db = {
   },
   booking: {
     findMany: async ({ where, include, orderBy }: any = {}) => {
-      let query = supabase.from('Booking').select(`
-        *,
-        ${include?.staff ? 'Staff(*)' : ''},
-        ${include?.services ? 'BookingService(*, Service(*))' : ''}
-      `)
+      let query = supabase.from('appointments').select('*, team_members(*)')
       if (where?.status) {
         if (where.status.in) query = query.in('status', where.status.in)
         else query = query.eq('status', where.status)
       }
       if (where?.date) query = query.eq('date', where.date.toISOString().split('T')[0])
-      if (where?.staffId) query = query.eq('staffId', where.staffId)
+      if (where?.staffId) query = query.eq('stylist_id', where.staffId)
       if (orderBy) {
         for (const order of (Array.isArray(orderBy) ? orderBy : [orderBy])) {
           const field = Object.keys(order)[0]
@@ -183,39 +222,149 @@ export const db = {
       }
       const { data, error } = await query
       if (error) throw error
-      return data
+      return data?.map(d => ({
+        id: d.id?.toString(),
+        clientName: d.client_name,
+        clientPhone: d.phone,
+        clientEmail: d.email,
+        date: new Date(d.date),
+        startTime: d.start_time,
+        endTime: d.end_time,
+        status: d.status,
+        notes: d.notes,
+        staffId: d.stylist_id?.toString(),
+        staff: d.team_members ? {
+          id: d.team_members.id?.toString(),
+          name: d.team_members.name
+        } : null
+      })) || []
     },
     create: async ({ data, include }: any) => {
       const { services, ...bookingData } = data
       const { data: result, error } = await supabase
-        .from('Booking')
-        .insert(bookingData)
+        .from('appointments')
+        .insert({
+          client_name: bookingData.clientName,
+          phone: bookingData.clientPhone,
+          email: bookingData.clientEmail,
+          date: bookingData.date,
+          start_time: bookingData.startTime,
+          end_time: bookingData.endTime,
+          status: bookingData.status,
+          notes: bookingData.notes,
+          stylist_id: bookingData.staffId
+        })
         .select()
         .single()
       if (error) throw error
       
-      // Create booking services
+      // Create appointment services
       if (services?.create) {
-        const bookingServices = services.create.map((s: any) => ({
-          bookingId: result.id,
-          serviceId: s.serviceId,
+        const appointmentServices = services.create.map((s: any) => ({
+          appointment_id: result.id,
+          service_id: s.serviceId,
         }))
-        await supabase.from('BookingService').insert(bookingServices)
-      }
-      
-      // Fetch complete booking with relations if needed
-      if (include) {
-        const { data: fullBooking } = await supabase
-          .from('Booking')
-          .select(`*, Staff(*), BookingService(*, Service(*))`)
-          .eq('id', result.id)
-          .single()
-        return fullBooking
+        await supabase.from('appointment_services').insert(appointmentServices)
       }
       
       return result
     },
     update: async ({ where, data }: any) => {
+      const { data: result, error } = await supabase
+        .from('appointments')
+        .update({
+          client_name: data.clientName,
+          phone: data.clientPhone,
+          email: data.clientEmail,
+          status: data.status,
+          notes: data.notes
+        })
+        .eq('id', where.id)
+        .select()
+        .single()
+      if (error) throw error
+      return result
+    },
+  },
+  bookingService: {
+    findMany: async ({ where, include }: any = {}) => {
+      let query = supabase.from('appointment_services').select(include?.service ? '*, services(*)' : '*')
+      if (where?.bookingId) query = query.eq('appointment_id', where.bookingId)
+      const { data, error } = await query
+      if (error) throw error
+      return data?.map(d => ({
+        id: d.id?.toString(),
+        bookingId: d.appointment_id?.toString(),
+        serviceId: d.service_id?.toString(),
+        service: d.services ? {
+          id: d.services.id?.toString(),
+          name: d.services.name,
+          duration: d.services.duration_minutes
+        } : null
+      })) || []
+    },
+  },
+  promotion: {
+    findMany: async ({ where, orderBy }: any = {}) => {
+      let query = supabase.from('promotions').select('*')
+      if (where?.active !== undefined) query = query.eq('is_active', where.active)
+      if (where?.visible !== undefined) query = query.eq('show_on_site', where.visible)
+      if (orderBy) {
+        const field = Object.keys(orderBy)[0]
+        const direction = orderBy[field] === 'asc'
+        query = query.order(field, { ascending: direction })
+      }
+      const { data, error } = await query
+      if (error) throw error
+      return data?.map(d => ({
+        id: d.id?.toString(),
+        name: d.name,
+        description: d.description,
+        discount: 0,
+        startDate: d.valid_from,
+        endDate: d.valid_until,
+        active: d.is_active,
+        visible: d.show_on_site
+      })) || []
+    },
+    create: async ({ data }: any) => {
+      const { data: result, error } = await supabase
+        .from('promotions')
+        .insert({
+          name: data.name,
+          description: data.description,
+          valid_from: data.startDate,
+          valid_until: data.endDate,
+          is_active: data.active,
+          show_on_site: data.visible
+        })
+        .select()
+        .single()
+      if (error) throw error
+      return result
+    },
+  },
+  portfolioImage: {
+    findMany: async ({ where, orderBy }: any = {}) => {
+      let query = supabase.from('gallery').select('*')
+      if (where?.active !== undefined) query = query.eq('visible', where.active)
+      if (orderBy) {
+        const field = Object.keys(orderBy)[0]
+        const direction = orderBy[field] === 'asc'
+        query = query.order(field, { ascending: direction })
+      }
+      const { data, error } = await query
+      if (error) throw error
+      return data?.map(d => ({
+        id: d.id?.toString(),
+        url: d.image_url,
+        category: 'general',
+        caption: d.title,
+        active: d.visible
+      })) || []
+    },
+  },
+}   update: async ({ where, data }: any) => {
       const { data: result, error } = await supabase
         .from('Booking')
         .update(data)
