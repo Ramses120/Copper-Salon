@@ -36,50 +36,50 @@ export default function Footer() {
       name: "Instagram", 
       icon: Instagram, 
       href: "https://www.instagram.com/copper_beauty_salon_spa",
-      color: "hover:text-pink-600"
+      color: "hover:bg-white/10"
     },
     { 
       name: "TikTok", 
       icon: FaTiktok, 
       href: "https://www.tiktok.com/@copperbeautysalon",
-      color: "hover:text-black"
+      color: "hover:bg-white/10"
     },
     { 
       name: "WhatsApp", 
       icon: FaWhatsapp, 
       href: "https://wa.me/17864092226",
-      color: "hover:text-green-600"
+      color: "hover:bg-white/10"
     },
   ];
 
   return (
-    <footer className="bg-gray-900 text-white">
-      <div className="container mx-auto px-4 py-16">
-        <div className="grid md:grid-cols-3 gap-12">
+    <footer className="bg-black text-white mt-10 relative z-10 w-full">
+      <div className="container mx-auto px-4 py-24">
+        <div className="grid md:grid-cols-3 gap-12 lg:gap-16 items-start">
           {/* Logo and Description */}
           <div className="space-y-4">
             <Link href="/" className="flex flex-col items-start">
-              <div className="flex items-baseline gap-0.5">
-                <span className="font-times text-3xl font-bold text-copper-red tracking-wide">
+              <div className="flex items-baseline gap-1">
+                <span className="font-playfair text-3xl lg:text-4xl font-bold text-[#d63d7a] tracking-wide">
                   Copper
                 </span>
               </div>
               <div className="flex items-center gap-1 -mt-1">
-                <span className="font-times text-sm tracking-wider text-white">
+                <span className="font-times text-sm lg:text-base tracking-wider text-white">
                   Beauty Salon
                 </span>
-                <span className="font-playfair italic text-sm text-white">&</span>
-                <span className="font-times text-sm tracking-wider text-white">
+                <span className="font-playfair italic text-sm lg:text-base text-white/80">&</span>
+                <span className="font-times text-sm lg:text-base tracking-wider text-white">
                   Spa
                 </span>
               </div>
             </Link>
-            <p className="text-gray-400 text-sm leading-relaxed">
-              Tu destino de belleza en Miami. Especialistas en cabello, maquillaje, uñas y tratamientos de spa.
+            <p className="text-white/70 text-sm lg:text-base leading-relaxed max-w-md">
+              Tu destino de belleza en Miami. Especialistas en cabello, maquillaje, uñas y tratamientos faciales con un estilo femenino y elegante.
             </p>
             
             {/* Social Media */}
-            <div className="flex gap-4 pt-4">
+            <div className="flex gap-3 pt-2">
               {socialLinks.map((social) => {
                 const Icon = social.icon;
                 return (
@@ -88,10 +88,10 @@ export default function Footer() {
                     href={social.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={`bg-gray-800 p-3 rounded-full transition-colors ${social.color}`}
+                    className={`p-3 lg:p-3.5 rounded-full border border-white/15 bg-white/5 text-white transition-colors ${social.color}`}
                     aria-label={social.name}
                   >
-                    <Icon size={20} />
+                    <Icon size={18} />
                   </a>
                 );
               })}
@@ -100,33 +100,25 @@ export default function Footer() {
 
           {/* Quick Links */}
           <div>
-            <h3 className="font-times text-xl font-bold mb-6">Enlaces Rápidos</h3>
-            <ul className="space-y-3">
+            <h3 className="font-playfair text-xl lg:text-2xl font-bold mb-6 text-white">Enlaces rápidos</h3>
+            <ul className="space-y-3 text-base lg:text-lg">
               {quickLinks.map((link) => (
                 <li key={link.href}>
                   <Link
                     href={link.href}
-                    className="text-gray-400 hover:text-copper-red transition-colors"
+                    className="text-white/70 hover:text-white transition-colors font-montserrat"
                   >
                     {link.label}
                   </Link>
                 </li>
               ))}
-              <li>
-                <Link
-                  href="/admin"
-                  className="text-gray-600 hover:text-gray-500 transition-colors text-sm"
-                >
-                  Admin
-                </Link>
-              </li>
             </ul>
           </div>
 
           {/* Contact Info */}
           <div>
-            <h3 className="font-times text-xl font-bold mb-6">Contacto</h3>
-            <ul className="space-y-4">
+            <h3 className="font-playfair text-xl lg:text-2xl font-bold mb-6 text-white">Contacto</h3>
+            <ul className="space-y-4 text-base lg:text-lg">
               {contactInfo.map((info, index) => {
                 const Icon = info.icon;
                 return (
@@ -135,23 +127,32 @@ export default function Footer() {
                       href={info.href}
                       target={info.icon === MapPin ? "_blank" : undefined}
                       rel={info.icon === MapPin ? "noopener noreferrer" : undefined}
-                      className="flex items-start gap-3 text-gray-400 hover:text-copper-red transition-colors"
+                      className="flex items-start gap-3 text-white/70 hover:text-white transition-colors"
                     >
                       <Icon size={20} className="mt-1 flex-shrink-0" />
-                      <span className="text-sm">{info.text}</span>
+                      <span className="text-sm lg:text-base font-montserrat">{info.text}</span>
                     </a>
                   </li>
                 );
               })}
             </ul>
 
-            <div className="mt-6 pt-6 border-t border-gray-800">
-              <p className="text-sm text-gray-400">
-                <span className="font-semibold">Horario:</span>
+            <div className="mt-6">
+              <Link
+                href="/admin"
+                className="inline-block text-white/60 hover:text-white font-montserrat font-semibold transition-colors text-sm lg:text-base"
+              >
+                Copper Beaty Salon
+              </Link>
+            </div>
+
+            <div className="mt-6 pt-6 border-t border-white/10">
+              <p className="text-sm text-white/70 font-montserrat">
+                <span className="font-semibold text-white">Horario:</span>
                 <br />
                 Lunes - Sábado: 9:00 AM - 7:00 PM
                 <br />
-                <span className="text-xs text-gray-500">Última cita: 5:30 PM</span>
+                <span className="text-xs text-white/50">Última cita: 5:30 PM</span>
                 <br />
                 Domingo: Cerrado
               </p>
@@ -161,19 +162,19 @@ export default function Footer() {
       </div>
 
       {/* Bottom Bar */}
-      <div className="border-t border-gray-800">
-        <div className="container mx-auto px-4 py-6">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-gray-500">
-            <p>
+      <div className="border-t border-white/10 bg-black">
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-sm lg:text-base text-white/60">
+            <p className="font-montserrat">
               © {new Date().getFullYear()} Copper Beauty Salon & Spa. Todos los derechos reservados.
             </p>
-            <p>
+            <p className="font-montserrat">
               Diseñado por{" "}
               <a
                 href="https://versa-commerce.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-copper-red hover:underline"
+                className="text-white hover:underline"
               >
                 versa-commerce.com
               </a>

@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
@@ -61,6 +63,7 @@ export default function ReservarPage() {
     notas: "",
   });
   const [submitted, setSubmitted] = useState(false);
+  const searchParams = useSearchParams();
 
   const toggleService = (serviceId: string) => {
     setSelectedServices((prev) =>
@@ -94,10 +97,29 @@ export default function ReservarPage() {
 
   const canProceedToStep = (stepNumber: number) => {
     if (stepNumber === 2) return selectedServices.length > 0;
-    if (stepNumber === 3) return selectedStaff !== "";
-    if (stepNumber === 4) return selectedDate !== "" && selectedTime !== "";
+    if (stepNumber === 3) return selectedStaff !== "" && selectedDate !== "" && selectedTime !== "";
     return true;
   };
+
+  // Pre-seleccionar servicios si vienen de /servicios
+  useEffect(() => {
+    const servicesParam = searchParams.get("services");
+    const stepParam = searchParams.get("step");
+
+    if (servicesParam) {
+      const ids = servicesParam.split(",").map((id) => id.trim()).filter(Boolean);
+      const validIds = servicesData
+        .filter((service) => ids.includes(service.id))
+        .map((s) => s.id);
+
+      if (validIds.length) {
+        setSelectedServices(validIds);
+        if (stepParam === "2") {
+          setStep(2);
+        }
+      }
+    }
+  }, [searchParams]);
 
   const handleSubmit = () => {
     // Aquí se enviaría la reserva al backend
@@ -170,7 +192,7 @@ export default function ReservarPage() {
                     Te llamaremos al <span className="font-semibold">{clientInfo.telefono}</span> para confirmar tu cita.
                   </p>
                   <Button variant="copper" asChild>
-                    <a href="/">Volver al Inicio</a>
+                    <Link href="/">Volver al Inicio</Link>
                   </Button>
                 </CardContent>
               </Card>
@@ -192,7 +214,7 @@ export default function ReservarPage() {
             {/* Progress Steps */}
             <div className="mb-12">
               <div className="flex items-center justify-center gap-2 md:gap-4">
-                {[1, 2, 3, 4].map((s) => (
+                {[1, 2, 3].map((s) => (
                   <div key={s} className="flex items-center">
                     <div
                       className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold transition-all ${
@@ -203,7 +225,7 @@ export default function ReservarPage() {
                     >
                       {s}
                     </div>
-                    {s < 4 && (
+                    {s < 3 && (
                       <div
                         className={`w-8 md:w-16 h-1 transition-all ${
                           step > s ? "bg-copper-red" : "bg-gray-300"
@@ -216,9 +238,8 @@ export default function ReservarPage() {
               <div className="text-center mt-4">
                 <h2 className="font-times text-2xl md:text-3xl font-bold text-gray-900">
                   {step === 1 && "Selecciona tus servicios"}
-                  {step === 2 && "Elige tu estilista"}
-                  {step === 3 && "Fecha y hora"}
-                  {step === 4 && "Tus datos"}
+                  {step === 2 && "Elige estilista y agenda"}
+                  {step === 3 && "Tus datos y resumen"}
                 </h2>
               </div>
             </div>
@@ -301,52 +322,122 @@ export default function ReservarPage() {
               </div>
             )}
 
-            {/* Step 2: Staff */}
+            {/* Step 2: Staff + Date & Time */}
             {step === 2 && (
-              <div className="space-y-4 animate-fade-in">
-                <div className="grid md:grid-cols-3 gap-6">
-                  {staffData.map((staff) => {
-                    const isSelected = selectedStaff === staff.id;
-                    return (
-                      <Card
-                        key={staff.id}
-                        className={`cursor-pointer transition-all ${
-                          isSelected
-                            ? "bg-copper-red/10 border-2 border-copper-red"
-                            : "bg-white/80 border-2 border-transparent hover:border-copper-red/50"
-                        }`}
-                        onClick={() => setSelectedStaff(staff.id)}
-                      >
-                        <CardContent className="p-6 text-center">
-                          <div className="relative inline-block mb-4">
-                            <img
-                              src={staff.photo}
-                              alt={staff.name}
-                              className="w-32 h-32 rounded-full object-cover mx-auto"
-                            />
-                            {isSelected && (
-                              <div className="absolute -top-2 -right-2 bg-copper-red rounded-full p-1">
-                                <CheckCircle2 className="text-white" size={24} />
-                              </div>
-                            )}
-                          </div>
-                          <h3 className="font-semibold text-lg mb-1">
-                            {staff.name}
+              <div className="space-y-6 animate-fade-in">
+                <div className="grid lg:grid-cols-2 gap-6">
+                  {/* Calendario y horas */}
+                  <Card className="bg-white/85 backdrop-blur-sm">
+                    <CardContent className="p-6 space-y-6">
+                      <div>
+                        <h3 className="font-semibold text-lg mb-3 flex items-center gap-2 justify-center lg:justify-start">
+                          <Calendar className="text-copper-red" />
+                          Selecciona una fecha
+                        </h3>
+                        <div className="grid grid-cols-3 md:grid-cols-4 gap-3 lg:grid-cols-3 xl:grid-cols-4">
+                          {getAvailableDates().map((date, index) => {
+                            const dateStr = date.toISOString().split("T")[0];
+                            const isSelected = selectedDate === dateStr;
+                            const display = formatDateDisplay(date);
+                            return (
+                              <button
+                                key={index}
+                                onClick={() => setSelectedDate(dateStr)}
+                                className={`p-4 rounded-xl text-center transition-all border ${
+                                  isSelected
+                                    ? "bg-copper-red text-white shadow-lg border-copper-red"
+                                    : "bg-gray-50 hover:bg-gray-100 border-transparent"
+                                }`}
+                              >
+                                <div className="text-xs font-semibold mb-1">
+                                  {display.day}
+                                </div>
+                                <div className="text-2xl font-bold">{display.date}</div>
+                                <div className="text-xs mt-1">{display.month}</div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {selectedDate && (
+                        <div className="space-y-3">
+                          <h3 className="font-semibold text-lg flex items-center gap-2 justify-center lg:justify-start">
+                            <Clock className="text-copper-red" />
+                            Selecciona una hora
                           </h3>
-                          <p className="text-sm text-gray-600">{staff.specialty}</p>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
+                          <p className="text-sm text-gray-600 text-center lg:text-left">
+                            Horario: 9:00 AM - 5:30 PM
+                          </p>
+                          <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                            {timeSlots.map((time) => {
+                              const isSelected = selectedTime === time;
+                              return (
+                                <button
+                                  key={time}
+                                  onClick={() => setSelectedTime(time)}
+                                  className={`p-3 rounded-lg text-center transition-all border ${
+                                    isSelected
+                                      ? "bg-copper-red text-white shadow-lg border-copper-red"
+                                      : "bg-gray-50 hover:bg-gray-100 border-transparent"
+                                  }`}
+                                >
+                                  {time}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* Estilistas */}
+                  <Card className="bg-white/85 backdrop-blur-sm">
+                    <CardContent className="p-6">
+                      <h3 className="font-semibold text-lg mb-4 text-center lg:text-left">
+                        Elige tu estilista
+                      </h3>
+                      <div className="grid sm:grid-cols-2 gap-4">
+                        {staffData.map((staff) => {
+                          const isSelected = selectedStaff === staff.id;
+                          return (
+                            <Card
+                              key={staff.id}
+                              className={`cursor-pointer transition-all ${
+                                isSelected
+                                  ? "bg-copper-red/10 border-2 border-copper-red"
+                                  : "bg-white/80 border-2 border-transparent hover:border-copper-red/50"
+                              }`}
+                              onClick={() => setSelectedStaff(staff.id)}
+                            >
+                              <CardContent className="p-5 text-center lg:text-left space-y-1">
+                                <div className="flex items-center justify-between gap-2">
+                                  <h3 className="font-semibold text-base text-[#1f1a1c]">
+                                    {staff.name}
+                                  </h3>
+                                  {isSelected && (
+                                    <CheckCircle2 className="text-copper-red" size={18} />
+                                  )}
+                                </div>
+                                <p className="text-sm text-gray-600">{staff.specialty}</p>
+                              </CardContent>
+                            </Card>
+                          );
+                        })}
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
 
-                <div className="flex gap-4 justify-between pt-6">
-                  <Button variant="outline" onClick={() => setStep(1)}>
+                <div className="flex flex-col sm:flex-row gap-4 justify-between">
+                  <Button variant="outline" onClick={() => setStep(1)} className="w-full sm:w-auto">
                     <ChevronLeft className="mr-2" />
                     Atrás
                   </Button>
                   <Button
                     variant="copper"
+                    className="w-full sm:w-auto"
                     disabled={!canProceedToStep(3)}
                     onClick={() => setStep(3)}
                   >
@@ -357,93 +448,8 @@ export default function ReservarPage() {
               </div>
             )}
 
-            {/* Step 3: Date & Time */}
+            {/* Step 3: Client Info + Summary */}
             {step === 3 && (
-              <div className="space-y-6 animate-fade-in">
-                <Card className="bg-white/80 backdrop-blur-sm">
-                  <CardContent className="p-6">
-                    <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
-                      <Calendar className="text-copper-red" />
-                      Selecciona una fecha
-                    </h3>
-                    <div className="grid grid-cols-3 md:grid-cols-7 gap-3">
-                      {getAvailableDates().map((date, index) => {
-                        const dateStr = date.toISOString().split("T")[0];
-                        const isSelected = selectedDate === dateStr;
-                        const display = formatDateDisplay(date);
-                        return (
-                          <button
-                            key={index}
-                            onClick={() => setSelectedDate(dateStr)}
-                            className={`p-4 rounded-xl text-center transition-all ${
-                              isSelected
-                                ? "bg-copper-red text-white shadow-lg"
-                                : "bg-gray-50 hover:bg-gray-100"
-                            }`}
-                          >
-                            <div className="text-xs font-semibold mb-1">
-                              {display.day}
-                            </div>
-                            <div className="text-2xl font-bold">{display.date}</div>
-                            <div className="text-xs mt-1">{display.month}</div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {selectedDate && (
-                  <Card className="bg-white/80 backdrop-blur-sm">
-                    <CardContent className="p-6">
-                      <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
-                        <Clock className="text-copper-red" />
-                        Selecciona una hora
-                      </h3>
-                      <p className="text-sm text-gray-600 mb-4">
-                        Horario: 9:00 AM - 7:00 PM | Última cita: 5:30 PM
-                      </p>
-                      <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
-                        {timeSlots.map((time) => {
-                          const isSelected = selectedTime === time;
-                          return (
-                            <button
-                              key={time}
-                              onClick={() => setSelectedTime(time)}
-                              className={`p-3 rounded-lg text-center transition-all ${
-                                isSelected
-                                  ? "bg-copper-red text-white shadow-lg"
-                                  : "bg-gray-50 hover:bg-gray-100"
-                              }`}
-                            >
-                              {time}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                <div className="flex gap-4 justify-between">
-                  <Button variant="outline" onClick={() => setStep(2)}>
-                    <ChevronLeft className="mr-2" />
-                    Atrás
-                  </Button>
-                  <Button
-                    variant="copper"
-                    disabled={!canProceedToStep(4)}
-                    onClick={() => setStep(4)}
-                  >
-                    Continuar
-                    <ChevronRight className="ml-2" />
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {/* Step 4: Client Info */}
-            {step === 4 && (
               <div className="animate-fade-in">
                 <div className="grid lg:grid-cols-2 gap-8">
                   <Card className="bg-white/80 backdrop-blur-sm">

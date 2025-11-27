@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import NextImage from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -263,10 +264,13 @@ export default function AdminPortafolioPage() {
                 {/* Preview */}
                 {previewUrl && (
                   <div className="mt-3 relative w-full h-48 bg-gray-100 rounded-lg overflow-hidden">
-                    <img
+                    <NextImage
                       src={previewUrl}
                       alt="Preview"
-                      className="w-full h-full object-cover"
+                      fill
+                      sizes="(min-width: 1024px) 360px, 90vw"
+                      className="object-cover"
+                      unoptimized
                     />
                   </div>
                 )}
@@ -351,10 +355,13 @@ export default function AdminPortafolioPage() {
           filteredImages.map((img) => (
             <Card key={img.id} className="overflow-hidden group">
               <div className="relative h-64 bg-gray-100">
-                <img
+                <NextImage
                   src={img.url}
                   alt={img.descripcion}
-                  className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                  fill
+                  sizes="(min-width: 1024px) 360px, 90vw"
+                  className="object-cover transition-transform group-hover:scale-105"
+                  unoptimized
                 />
                 <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all flex items-center justify-center">
                   <Button

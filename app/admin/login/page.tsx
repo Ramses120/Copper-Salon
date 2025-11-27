@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -117,12 +118,9 @@ export default function AdminLoginPage() {
           </form>
 
           <div className="mt-6 text-center">
-            <a
-              href="/"
-              className="text-sm text-gray-600 hover:text-copper-red transition-colors"
-            >
+            <Link href="/" className="text-sm text-gray-600 hover:text-copper-red transition-colors">
               ← Volver al sitio
-            </a>
+            </Link>
           </div>
         </CardContent>
       </Card>

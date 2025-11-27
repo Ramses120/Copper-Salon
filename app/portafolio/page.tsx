@@ -11,7 +11,7 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
-import Image from "next/image";
+import NextImage from "next/image";
 
 // Mock data - en producción esto vendrá de la base de datos
 const portfolioImages = [
@@ -94,12 +94,12 @@ export default function PortafolioPage() {
                 {categories.map((category) => (
                   <Button
                     key={category.id}
-                    variant={selectedCategory === category.id ? "copper" : "outline"}
+                    variant={selectedCategory === category.id ? "default" : "outline"}
                     onClick={() => setSelectedCategory(category.id)}
                     className={`rounded-full transition-all ${
                       selectedCategory === category.id 
-                        ? "shadow-lg" 
-                        : "hover:border-copper-red hover:text-copper-red"
+                        ? "bg-black text-white shadow-lg" 
+                        : "border-black text-black hover:bg-black/10"
                     }`}
                   >
                     {category.name}
@@ -126,10 +126,13 @@ export default function PortafolioPage() {
                   style={{ animationDelay: `${index * 0.05}s` }}
                   onClick={() => openLightbox(index)}
                 >
-                  <img
+                  <NextImage
                     src={image.url}
                     alt={image.caption}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                    fill
+                    sizes="(min-width: 1280px) 320px, (min-width: 768px) 33vw, 90vw"
+                    className="object-cover group-hover:scale-110 transition-transform duration-500"
+                    unoptimized
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                     <div className="absolute bottom-0 left-0 right-0 p-4">
@@ -183,11 +186,14 @@ export default function PortafolioPage() {
             </button>
 
             {/* Image */}
-            <div className="relative w-full h-[80vh] flex items-center justify-center">
-              <img
-                src={filteredImages[currentImageIndex]?.url}
-                alt={filteredImages[currentImageIndex]?.caption}
-                className="max-w-full max-h-full object-contain"
+            <div className="relative w-full h-[80vh]">
+              <NextImage
+                src={filteredImages[currentImageIndex]?.url || ""}
+                alt={filteredImages[currentImageIndex]?.caption || "Imagen de portafolio"}
+                fill
+                sizes="100vw"
+                className="object-contain"
+                unoptimized
               />
             </div>
 

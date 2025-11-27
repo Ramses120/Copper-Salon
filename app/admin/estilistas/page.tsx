@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import NextImage from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -236,10 +237,13 @@ export default function AdminEstilistasPage() {
                 <Label htmlFor="foto">Foto de Perfil</Label>
                 <div className="mt-2 flex items-center gap-4">
                   {previewUrl ? (
-                    <img
+                    <NextImage
                       src={previewUrl}
                       alt="Preview"
+                      width={96}
+                      height={96}
                       className="w-24 h-24 rounded-full object-cover border-2 border-gray-300"
+                      unoptimized
                     />
                   ) : (
                     <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center">
@@ -390,10 +394,13 @@ export default function AdminEstilistasPage() {
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-center gap-4">
                     {s.foto ? (
-                      <img
+                      <NextImage
                         src={s.foto}
                         alt={s.nombre}
+                        width={64}
+                        height={64}
                         className="w-16 h-16 rounded-full object-cover border-2 border-gray-200"
+                        unoptimized
                       />
                     ) : (
                       <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center">

@@ -2,6 +2,14 @@ import Header from "@/components/Header";
 import HeroSection from "@/components/HeroSection";
 import AboutSection from "@/components/AboutSection";
 import Footer from "@/components/Footer";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import NextImage from "next/image";
+import { Instagram } from "lucide-react";
+import makeup from "@/assets/makeup.jpg";
+import cejas from "@/assets/cejas.jpg";
+import Depilacion from "@/assets/Depilacion.jpg";
+import Faciales from "@/assets/Faciales.jpg";
 
 export default function HomePage() {
   return (
@@ -11,110 +19,112 @@ export default function HomePage() {
       <AboutSection />
       
       {/* Services Preview Section */}
-      <section className="py-24 bg-white relative overflow-hidden" id="servicios-preview">
-        {/* Decorative Elements */}
-        <div className="absolute top-20 right-0 w-72 h-72 bg-[#E46768]/5 rounded-full blur-3xl"></div>
-        
+      <section
+        className="py-20 sm:py-22 lg:py-28 bg-gradient-to-b from-white via-[#fff7fb] to-white relative overflow-hidden"
+        id="servicios-preview"
+      >
+        <div className="absolute top-[-120px] right-[-80px] w-80 h-80 sm:w-96 sm:h-96 bg-[#ffe6f2] rounded-full blur-3xl"></div>
+        <div className="absolute bottom-[-160px] left-[-100px] w-[22rem] h-[22rem] sm:w-[28rem] sm:h-[28rem] bg-[#ffeaf5] rounded-full blur-3xl"></div>
         <div className="container mx-auto px-4 relative z-10">
-          <div className="text-center mb-16">
-            <h2 className="font-playfair text-5xl md:text-6xl font-bold text-gray-900 mb-6">
-              Descubre Nuestros{" "}
-              <span className="text-gradient-copper bg-gradient-to-r from-[#E46768] to-[#BE5A5B] bg-clip-text text-transparent">
-                Servicios
-              </span>
+          <div className="text-center mb-12 sm:mb-14">
+            <h2 className="font-playfair text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-[#2c1e21] leading-tight mb-4 sm:mb-6">
+              Explora nuestros servicios
             </h2>
-            <p className="text-gray-600 max-w-2xl mx-auto font-montserrat text-lg">
-              Profesionalidad, calidad y atención personalizada en cada servicio
+            <p className="text-gray-600 max-w-3xl mx-auto font-montserrat text-sm sm:text-base md:text-lg lg:text-xl">
+              Un espacio para consentirte con cuidado de uñas, faciales, piel y más. Inspirado en los detalles elegantes de nuestro catálogo.
             </p>
           </div>
-          
-          <div className="grid md:grid-cols-3 gap-8 max-w-7xl mx-auto">
-            {[
-              {
-                title: "HairStyle",
-                image: "https://images.unsplash.com/photo-1562322140-8baeececf3df?q=80&w=2069",
-                description: "Cortes, color, balayage y peinados profesionales",
-                gradient: "from-purple-500 to-pink-500"
-              },
-              {
-                title: "Makeup",
-                image: "https://images.unsplash.com/photo-1487412947147-5cebf100ffc2?q=80&w=2071",
-                description: "Maquillaje para eventos, bodas y sesiones",
-                gradient: "from-pink-500 to-rose-500"
-              },
-              {
-                title: "Nail Services",
-                image: "https://images.unsplash.com/photo-1604654894610-df63bc536371?q=80&w=2087",
-                description: "Manicure, pedicure y diseños de uñas",
-                gradient: "from-rose-500 to-orange-500"
-              }
-            ].map((service, index) => (
-              <div 
-                key={index}
-                className="group relative overflow-hidden rounded-3xl shadow-elegant hover:shadow-copper transition-all duration-500 hover-lift"
-              >
-                <div className="aspect-[4/5] relative">
-                  <img
-                    src={service.image}
-                    alt={service.title}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                  />
-                  <div className={`absolute inset-0 bg-gradient-to-t ${service.gradient} opacity-60 group-hover:opacity-70 transition-opacity`}></div>
-                  
-                  {/* Content Overlay */}
-                  <div className="absolute inset-0 flex flex-col justify-end p-8">
-                    <div className="transform translate-y-0 group-hover:-translate-y-2 transition-transform duration-500">
-                      <h3 className="font-playfair text-3xl font-bold mb-3 text-white drop-shadow-lg">
-                        {service.title}
-                      </h3>
-                      <p className="text-white/95 font-montserrat text-sm leading-relaxed mb-4 drop-shadow">
-                        {service.description}
-                      </p>
-                      <button className="glass-effect backdrop-blur-xl px-6 py-2.5 rounded-full text-white text-sm font-montserrat font-medium border border-white/30 hover:bg-white/20 transition-all inline-flex items-center gap-2">
-                        Ver más
-                        <span className="group-hover:translate-x-1 transition-transform">→</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
+
+          {/* Nail highlight */}
+          <div className="grid lg:grid-cols-2 gap-8 lg:gap-10 items-center max-w-6xl mx-auto">
+            <div className="space-y-4 hidden md:block">
+              <span className="text-xs sm:text-sm uppercase tracking-[0.2em] text-[#b88a3b] font-montserrat font-semibold">Nail care</span>
+              <h3 className="font-playfair text-3xl sm:text-4xl lg:text-5xl text-[#2c1e21] font-bold">Nail Care</h3>
+              <p className="text-gray-700 font-montserrat leading-relaxed text-sm sm:text-base md:text-lg">
+                Relájate con manicure y pedicure spa, elige tu estilo en acrílico, gel o dips y luce nail art impecable con acabados duraderos. Nuestro equipo cuida cada detalle para que tus manos y pies se vean elegantes.
+              </p>
+            </div>
+            <div className="relative rounded-[26px] overflow-hidden shadow-elegant aspect-[4/5] max-h-[520px] w-full max-w-md mx-auto lg:max-w-none">
+              <NextImage
+                src="https://images.unsplash.com/photo-1604654894610-df63bc536371?q=80&w=1400"
+                alt="Nail care Copper"
+                fill
+                sizes="(min-width: 1024px) 520px, 90vw"
+                className="object-cover"
+                priority
+              />
+            </div>
           </div>
 
-          <div className="text-center mt-16">
-            <a
-              href="/servicios"
-              className="inline-flex items-center gap-3 bg-gradient-copper-primary text-white px-10 py-5 rounded-full font-montserrat font-semibold hover:shadow-copper transition-all hover-lift text-lg"
-            >
-              Ver Todos los Servicios
-              <span className="text-2xl">→</span>
-            </a>
+          {/* Other services collage */}
+          <div className="grid lg:grid-cols-[1.1fr,0.9fr] gap-8 lg:gap-10 mt-12 sm:mt-14 items-start max-w-6xl mx-auto">
+            <div className="grid sm:grid-cols-2 gap-3 sm:gap-4">
+              {[
+                makeup.src,
+                cejas.src,
+                Depilacion.src,
+                Faciales.src,
+              ].map((image, idx) => (
+                <div
+                  key={image}
+                  className={`relative overflow-hidden rounded-2xl shadow-soft ${idx === 0 ? "aspect-[4/3]" : "aspect-[4/3]"}`}
+                >
+                  <NextImage
+                    src={image}
+                    alt={`Servicio ${idx + 1}`}
+                    fill
+                    sizes="(min-width: 1024px) 260px, 50vw"
+                    className="object-cover"
+                    priority={idx === 0}
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="space-y-3 sm:space-y-4">
+              <h3 className="font-playfair text-xl sm:text-2xl lg:text-3xl text-[#2c1e21] font-bold">Otros servicios</h3>
+              <p className="text-gray-700 font-montserrat leading-relaxed text-sm sm:text-base md:text-lg">
+                Combina tus citas de uñas con faciales, tratamientos de piel y masajes para un ritual completo. Personalizamos cada sesión para que te sientas cuidada de pies a cabeza.
+              </p>
+              <ul className="space-y-2.5 sm:space-y-3 text-gray-800 font-montserrat text-sm sm:text-base md:text-lg">
+                {[
+                  "Waxing delicado",
+                  "Facial treatments",
+                  "Skin treatments",
+                  "Hydrafacial treatments",
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-2">
+                    <span className="mt-2 h-2 w-2 rounded-full bg-[#b88a3b]"></span>
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+              <Button
+                asChild
+                className="rounded-full bg-black text-white hover:bg-[#d63d7a] hover:text-white px-7 py-3 sm:px-8 sm:py-3 md:px-9 md:py-4 lg:px-12 lg:py-5 text-sm sm:text-base md:text-lg lg:text-xl font-semibold w-fit"
+              >
+                <Link href="/servicios">Explorar más</Link>
+              </Button>
+            </div>
           </div>
         </div>
       </section>
 
       {/* Portfolio Preview */}
-      <section className="py-24 bg-gradient-to-b from-gray-50 to-white relative overflow-hidden" id="portafolio-preview">
-        {/* Decorative Elements */}
-        <div className="absolute bottom-20 left-0 w-72 h-72 bg-purple-500/5 rounded-full blur-3xl"></div>
+      <section className="py-20 sm:py-24 bg-gradient-to-b from-white via-[#fff7fb] to-white relative overflow-hidden">
+        <div className="absolute top-[-120px] left-[-80px] w-[28rem] h-[28rem] bg-[#ffe6f2] rounded-full blur-3xl"></div>
+        <div className="absolute bottom-[-120px] right-[-100px] w-[28rem] h-[28rem] bg-[#ffeaf5] rounded-full blur-3xl"></div>
         
         <div className="container mx-auto px-4 relative z-10">
-          <div className="text-center mb-16">
-            <span className="px-4 py-2 bg-gray-900 text-white text-sm font-montserrat font-semibold rounded-full shadow-elegant inline-block mb-6">
-              Portafolio
-            </span>
-            <h2 className="font-playfair text-5xl md:text-6xl font-bold text-gray-900 mb-6">
-              Nuestro Trabajo Habla{" "}
-              <span className="text-gradient-copper bg-gradient-to-r from-[#E46768] to-[#BE5A5B] bg-clip-text text-transparent">
-                Por Sí Solo
-              </span>
+          <div className="text-center mb-12 sm:mb-16">
+            <h2 className="font-playfair text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900 mb-4 sm:mb-6">
+              Resultados que hablan por sí mismos
             </h2>
-            <p className="text-gray-600 mb-12 max-w-2xl mx-auto font-montserrat text-lg">
-              Descubre los resultados excepcionales que hemos logrado con nuestras clientas
+            <p className="text-gray-600 mb-10 sm:mb-12 max-w-2xl mx-auto font-montserrat text-sm sm:text-base md:text-lg">
+              Looks frescos, piel luminosa y peinados con movimiento natural creados por nuestro equipo.
             </p>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-7xl mx-auto">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 max-w-6xl mx-auto">
             {[
               "https://images.unsplash.com/photo-1560066984-138dadb4c035",
               "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e",
@@ -127,141 +137,79 @@ export default function HomePage() {
             ].map((image, index) => (
               <div
                 key={index}
-                className="group aspect-square relative overflow-hidden rounded-2xl shadow-soft hover:shadow-elegant transition-all cursor-pointer hover-lift"
+                className="group aspect-square relative overflow-hidden rounded-3xl shadow-soft hover:shadow-elegant transition-all cursor-pointer hover:-translate-y-1"
               >
-                <img
+                <NextImage
                   src={`${image}?q=80&w=400`}
                   alt={`Portfolio ${index + 1}`}
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                  fill
+                  sizes="(max-width: 768px) 45vw, (max-width: 1024px) 23vw, 260px"
+                  className="object-cover object-center group-hover:scale-110 transition-transform duration-700"
                 />
                 
                 {/* Hover Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-[#E46768]/90 via-[#E46768]/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-end justify-center p-6">
-                  <div className="glass-effect backdrop-blur-xl px-5 py-2 rounded-full border border-white/30">
-                    <span className="text-white font-montserrat text-sm font-medium">Ver detalles</span>
-                  </div>
+                <div className="absolute inset-0 bg-gradient-to-t from-[#ff9fc6]/85 via-[#ff9fc6]/35 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-center justify-center">
+                  <Instagram className="text-white" size={32} />
                 </div>
               </div>
             ))}
           </div>
 
-          <div className="text-center mt-16">
-            <a
-              href="/portafolio"
-              className="inline-flex items-center gap-3 bg-gray-900 text-white px-10 py-5 rounded-full font-montserrat font-semibold hover:bg-gray-800 transition-all hover-lift shadow-elegant text-lg"
+          <div className="text-center mt-12 sm:mt-16">
+            <Button
+              asChild
+              className="rounded-full bg-black text-white hover:bg-[#d63d7a] hover:text-white px-8 py-4 md:px-12 md:py-6 text-base md:text-xl font-semibold"
             >
-              Ver Portafolio Completo
-              <span className="text-2xl">→</span>
-            </a>
+              <Link href="/portafolio">Ver Galería Completa</Link>
+            </Button>
           </div>
         </div>
       </section>
 
       {/* Reviews Section */}
-      <section className="py-24 bg-white relative overflow-hidden">
-        {/* Decorative Background */}
-        <div className="absolute top-0 right-0 w-96 h-96 bg-[#E46768]/5 rounded-full blur-3xl"></div>
-        
+      <section className="py-24 bg-gradient-to-br from-[#fff6f8] via-[#f7dde5] to-[#f3cedb] relative overflow-hidden">
         <div className="container mx-auto px-4 relative z-10">
-          <div className="text-center mb-16">
-            <span className="px-4 py-2 bg-gradient-copper-primary text-white text-sm font-montserrat font-semibold rounded-full shadow-copper inline-block mb-6">
+          <div className="text-center mb-14">
+            <h2 className="font-playfair text-5xl md:text-6xl font-bold text-[#2c1e21] mb-4">
               Testimonios
-            </span>
-            <h2 className="font-playfair text-5xl md:text-6xl font-bold text-gray-900 mb-6">
-              Lo Que Dicen{" "}
-              <span className="text-gradient-copper bg-gradient-to-r from-[#E46768] to-[#BE5A5B] bg-clip-text text-transparent">
-                Nuestras Clientas
-              </span>
             </h2>
-            <p className="text-gray-600 font-montserrat text-lg">
-              Experiencias reales de clientas satisfechas
+            <p className="text-gray-700 font-montserrat text-base md:text-lg">
+              Lo que nuestras clientas cuentan de su experiencia en Copper.
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8 max-w-7xl mx-auto">
+          <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto">
             {[
-              {
-                name: "María González",
-                rating: 5,
-                comment: "¡Excelente servicio! Me encantó el resultado de mi balayage. El equipo es muy profesional y el ambiente es super acogedor.",
-                date: "Hace 2 semanas",
-                avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=200"
-              },
-              {
-                name: "Ana Rodríguez",
-                rating: 5,
-                comment: "Siempre salgo feliz de Copper. Las chicas son súper talentosas y me hacen sentir como en casa. Definitivamente mi salón favorito en Miami.",
-                date: "Hace 1 mes",
-                avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?q=80&w=200"
-              },
-              {
-                name: "Sofía Martínez",
-                rating: 5,
-                comment: "El maquillaje para mi boda fue perfecto. Lucí espectacular gracias al equipo de Copper. 100% recomendado para eventos especiales.",
-                date: "Hace 3 semanas",
-                avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=200"
-              }
+              { name: "María González", comment: "Mi experiencia fue increíble. Salí con el cabello perfecto y súper relajada." },
+              { name: "Deb Alison", comment: "Me encanta cómo se siente mi piel después del facial. Suave y luminosa." },
+              { name: "María Soreno", comment: "El equipo es amable y los servicios de uñas son top." },
+              { name: "Helen Trenton", comment: "Los servicios son impecables y el ambiente es muy tranquilo." },
+              { name: "Julia Ferrano", comment: "El staff es muy talentoso y cercano. Siempre quedo feliz." },
+              { name: "Celine De Noer", comment: "Recomiendo Copper para eventos. Maquillaje y peinado perfectos." },
             ].map((review, index) => (
               <div
                 key={index}
-                className="group bg-gradient-to-br from-gray-50 to-white rounded-3xl p-8 shadow-soft hover:shadow-elegant transition-all hover-lift border border-gray-100"
+                className="bg-white rounded-2xl p-6 shadow-soft border border-[#f0dde4] hover:shadow-elegant transition-all"
               >
-                {/* Stars */}
-                <div className="flex items-center gap-1 mb-6">
-                  {[...Array(review.rating)].map((_, i) => (
+                <div className="flex gap-1 mb-4 text-[#d4a36f] text-lg">
+                  {[...Array(5)].map((_, i) => (
                     <svg
                       key={i}
-                      className="w-5 h-5 text-yellow-400 fill-current drop-shadow"
-                      viewBox="0 0 20 20"
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                      className="w-5 h-5"
                     >
-                      <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z" />
+                      <path d="M12 21s-6.716-4.44-9.567-9.01C.65 9.788.948 6.706 3.05 4.844c1.884-1.667 4.72-1.328 6.313.51L12 7.8l2.637-2.446c1.593-1.838 4.429-2.177 6.313-.51 2.102 1.862 2.4 4.944.617 7.146C18.716 16.56 12 21 12 21z" />
                     </svg>
                   ))}
                 </div>
-                
-                {/* Comment */}
-                <p className="text-gray-700 mb-6 leading-relaxed font-montserrat italic">
-                  "{review.comment}"
+                <p className="text-gray-700 font-montserrat text-sm leading-relaxed mb-4">
+                  {review.comment}
                 </p>
-                
-                {/* Author Info */}
-                <div className="flex items-center gap-4 pt-4 border-t border-gray-200">
-                  <img 
-                    src={review.avatar} 
-                    alt={review.name}
-                    className="w-12 h-12 rounded-full object-cover shadow-md"
-                  />
-                  <div className="flex-1">
-                    <p className="font-playfair font-semibold text-gray-900">{review.name}</p>
-                    <p className="text-sm text-gray-500 font-montserrat">{review.date}</p>
-                  </div>
-                  {/* Quote Icon */}
-                  <div className="text-[#E46768]/20 group-hover:text-[#E46768]/40 transition-colors">
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M6 17h3l2-4V7H5v6h3zm8 0h3l2-4V7h-6v6h3z"/>
-                    </svg>
-                  </div>
-                </div>
+                <p className="font-montserrat font-semibold text-[#2c1e21] text-sm">{review.name}</p>
               </div>
             ))}
-          </div>
-
-          {/* Trust Indicators */}
-          <div className="mt-16 pt-16 border-t border-gray-200">
-            <div className="grid md:grid-cols-4 gap-8 max-w-5xl mx-auto text-center">
-              {[
-                { value: "4.9/5", label: "Calificación promedio", icon: "⭐" },
-                { value: "500+", label: "Reviews positivas", icon: "💬" },
-                { value: "98%", label: "Clientas satisfechas", icon: "❤️" },
-                { value: "3000+", label: "Servicios realizados", icon: "✨" }
-              ].map((stat, index) => (
-                <div key={index} className="space-y-2">
-                  <div className="text-4xl mb-2">{stat.icon}</div>
-                  <div className="font-playfair text-3xl font-bold text-[#E46768]">{stat.value}</div>
-                  <div className="text-sm text-gray-600 font-montserrat">{stat.label}</div>
-                </div>
-              ))}
-            </div>
           </div>
         </div>
       </section>
