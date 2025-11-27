@@ -1,7 +1,5 @@
 import { supabase } from './supabaseClient'
 
-// Database helper functions using Supabase
-// Adaptado al esquema actual de Supabase
 export const db = {
   admin: {
     findUnique: async ({ where }: any) => {
@@ -10,11 +8,10 @@ export const db = {
       if (where.email) query = query.eq('email', where.email)
       const { data, error } = await query.single()
       if (error) throw error
-      // Map to admin format
       return data ? {
         id: data.id?.toString(),
         email: data.email || '',
-        password: '', // Password not stored in team_members
+        password: '',
         name: data.name,
         rol: data.role || 'admin',
         activo: data.is_active
@@ -126,6 +123,65 @@ export const db = {
         active: d.active
       })) || []
     },
+    findUnique: async ({ where }: any) => {
+      const { data, error } = await supabase
+        .from('services')
+        .select('*')
+        .eq('id', where.id)
+        .single()
+      if (error) throw error
+      return data ? {
+        id: data.id?.toString(),
+        name: data.name,
+        description: data.description,
+        price: data.price,
+        duration: data.duration_minutes,
+        category: data.category,
+        categoryId: data.category,
+        active: data.active
+      } : null
+    },
+    create: async ({ data, include }: any) => {
+      const { data: result, error } = await supabase
+        .from('services')
+        .insert({
+          name: data.name,
+          description: data.description,
+          price: data.price,
+          duration_minutes: data.duration,
+          category: data.categoryId,
+          active: data.active
+        })
+        .select()
+        .single()
+      if (error) throw error
+      return result
+    },
+    update: async ({ where, data }: any) => {
+      const { data: result, error } = await supabase
+        .from('services')
+        .update({
+          name: data.name,
+          description: data.description,
+          price: data.price,
+          duration_minutes: data.duration,
+          category: data.categoryId,
+          active: data.active
+        })
+        .eq('id', where.id)
+        .select()
+        .single()
+      if (error) throw error
+      return result
+    },
+    delete: async ({ where }: any) => {
+      const { error } = await supabase
+        .from('services')
+        .delete()
+        .eq('id', where.id)
+      if (error) throw error
+    },
+  },
   staff: {
     findMany: async ({ where, orderBy }: any = {}) => {
       let query = supabase.from('team_members').select('*')
@@ -257,8 +313,6 @@ export const db = {
         .select()
         .single()
       if (error) throw error
-      
-      // Create appointment services
       if (services?.create) {
         const appointmentServices = services.create.map((s: any) => ({
           appointment_id: result.id,
@@ -266,7 +320,6 @@ export const db = {
         }))
         await supabase.from('appointment_services').insert(appointmentServices)
       }
-      
       return result
     },
     update: async ({ where, data }: any) => {
@@ -288,19 +341,33 @@ export const db = {
   },
   bookingService: {
     findMany: async ({ where, include }: any = {}) => {
-      let query = supabase.from('appointment_services').select(include?.service ? '*, services(*)' : '*')
+      let query = supabase.from('appointment_services').select('*')
       if (where?.bookingId) query = query.eq('appointment_id', where.bookingId)
       const { data, error } = await query
       if (error) throw error
-      return data?.map(d => ({
+      if (include?.service && data) {
+        const serviceIds = data.map((d: any) => d.service_id)
+        const { data: services } = await supabase
+          .from('services')
+          .select('*')
+          .in('id', serviceIds)
+        const serviceMap = new Map(services?.map((s: any) => [s.id, s]) || [])
+        return data.map((d: any) => ({
+          id: d.id?.toString(),
+          bookingId: d.appointment_id?.toString(),
+          serviceId: d.service_id?.toString(),
+          service: serviceMap.get(d.service_id) ? {
+            id: serviceMap.get(d.service_id).id?.toString(),
+            name: serviceMap.get(d.service_id).name,
+            duration: serviceMap.get(d.service_id).duration_minutes
+          } : null
+        }))
+      }
+      return data?.map((d: any) => ({
         id: d.id?.toString(),
         bookingId: d.appointment_id?.toString(),
         serviceId: d.service_id?.toString(),
-        service: d.services ? {
-          id: d.services.id?.toString(),
-          name: d.services.name,
-          duration: d.services.duration_minutes
-        } : null
+        service: null
       })) || []
     },
   },
@@ -364,65 +431,4 @@ export const db = {
       })) || []
     },
   },
-}   update: async ({ where, data }: any) => {
-      const { data: result, error } = await supabase
-        .from('Booking')
-        .update(data)
-        .eq('id', where.id)
-        .select('*, Staff(*)')
-        .single()
-      if (error) throw error
-      return result
-    },
-  },
-  bookingService: {
-    findMany: async ({ where, include }: any = {}) => {
-      let query = supabase.from('BookingService').select(include?.service ? '*, Service(*)' : '*')
-      if (where?.bookingId) query = query.eq('bookingId', where.bookingId)
-      const { data, error } = await query
-      if (error) throw error
-      return data
-    },
-  },
-  promotion: {
-    findMany: async ({ where, orderBy }: any = {}) => {
-      let query = supabase.from('Promotion').select('*')
-      if (where?.active !== undefined) query = query.eq('active', where.active)
-      if (where?.visible !== undefined) query = query.eq('visible', where.visible)
-      if (orderBy) {
-        const field = Object.keys(orderBy)[0]
-        const direction = orderBy[field] === 'asc'
-        query = query.order(field, { ascending: direction })
-      }
-      const { data, error } = await query
-      if (error) throw error
-      return data
-    },
-    create: async ({ data }: any) => {
-      const { data: result, error } = await supabase
-        .from('Promotion')
-        .insert(data)
-        .select()
-        .single()
-      if (error) throw error
-      return result
-    },
-  },
-  portfolioImage: {
-    findMany: async ({ where, orderBy }: any = {}) => {
-      let query = supabase.from('PortfolioImage').select('*')
-      if (where?.active !== undefined) query = query.eq('active', where.active)
-      if (where?.category) query = query.eq('category', where.category)
-      if (orderBy) {
-        const field = Object.keys(orderBy)[0]
-        const direction = orderBy[field] === 'asc'
-        query = query.order(field, { ascending: direction })
-      }
-      const { data, error } = await query
-      if (error) throw error
-      return data
-    },
-  },
 }
-
-export const prisma = db
