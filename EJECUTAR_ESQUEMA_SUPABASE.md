@@ -20,6 +20,7 @@
 5. **Verifica que se crearon las tablas**
    - Ve a **Table Editor** en el menú lateral
    - Deberías ver todas estas tablas:
+     - **admins** (para login con contraseña)
      - team_members
      - services
      - service_categories
@@ -35,27 +36,13 @@
 
 ## Credenciales de Admin
 
-Para entrar al panel de administración necesitas crear un usuario admin manualmente en Supabase:
+**¡El admin ya está creado automáticamente!** El esquema incluye un administrador con contraseña hasheada.
 
-1. Ve a **SQL Editor** y ejecuta este SQL:
+Puedes entrar con:
+- **Email**: admin@copperbeauty.com
+- **Password**: admin123@
 
-```sql
--- Crear un usuario admin
-INSERT INTO team_members (name, email, phone, role, is_active)
-VALUES (
-  'Administrador',
-  'admin@copperbeauty.com',
-  '1234567890',
-  'admin',
-  true
-);
-```
-
-2. Luego puedes entrar con:
-   - Email: admin@copperbeauty.com
-   - Password: admin123@
-
-**NOTA IMPORTANTE:** El sistema de autenticación actual usa team_members para login. Si necesitas un sistema de autenticación separado con contraseñas, necesitamos crear una tabla `admins` adicional o usar Supabase Auth.
+**NOTA IMPORTANTE:** La contraseña está hasheada con bcrypt por seguridad. Si necesitas cambiarla o crear más admins, usa el panel de administración o ejecuta SQL en Supabase.
 
 ## Verificar que todo funciona
 
@@ -74,8 +61,13 @@ npm run dev
 
 ## Cambios realizados en el código
 
+- **Tabla admins**: Nueva tabla con contraseñas hasheadas con bcrypt
+  - Campos: id, name, email, password (hash), rol, permisos, activo
+  - Separada de team_members (estilistas)
+
 - **lib/db.ts**: Ahora usa los nombres de tablas correctos de Supabase:
-  - `team_members` en lugar de `Admin` o `Staff`
+  - `admins` para autenticación (con contraseñas)
+  - `team_members` para estilistas (sin contraseñas)
   - `service_categories` en lugar de `Category`
   - `services` con campos `category`, `duration_minutes`, etc.
   - `appointments` en lugar de `Booking`

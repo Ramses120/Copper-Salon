@@ -10,6 +10,18 @@ BEGIN;
 -- 1. CREAR TABLAS
 -- ===========================
 
+-- ADMINISTRADORES (Para login)
+CREATE TABLE IF NOT EXISTS public.admins (
+  id           BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  name         TEXT NOT NULL,
+  email        TEXT NOT NULL UNIQUE,
+  password     TEXT NOT NULL,
+  rol          TEXT NOT NULL DEFAULT 'admin',
+  permisos     TEXT,
+  activo       BOOLEAN DEFAULT TRUE,
+  created_at   TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- EQUIPO
 CREATE TABLE IF NOT EXISTS public.team_members (
   id           BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -156,6 +168,8 @@ CREATE TABLE IF NOT EXISTS public.testimonials (
 -- 2. ÍNDICES
 -- ===========================
 
+CREATE INDEX IF NOT EXISTS idx_admins_email ON public.admins (email);
+CREATE INDEX IF NOT EXISTS idx_admins_activo ON public.admins (activo);
 CREATE INDEX IF NOT EXISTS idx_team_members_active ON public.team_members (is_active);
 CREATE INDEX IF NOT EXISTS idx_services_category ON public.services (category);
 CREATE INDEX IF NOT EXISTS idx_services_active ON public.services (active);
@@ -198,6 +212,7 @@ CREATE TRIGGER update_site_content_updated_at
 -- 4. ROW LEVEL SECURITY
 -- ===========================
 
+ALTER TABLE public.admins ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.team_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.services ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.service_categories ENABLE ROW LEVEL SECURITY;
@@ -207,6 +222,7 @@ ALTER TABLE public.appointments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.testimonials ENABLE ROW LEVEL SECURITY;
 
 -- Eliminar políticas existentes
+DROP POLICY IF EXISTS "Admins can manage themselves" ON public.admins;
 DROP POLICY IF EXISTS "Anyone can view active team members" ON public.team_members;
 DROP POLICY IF EXISTS "Admin can manage team members" ON public.team_members;
 DROP POLICY IF EXISTS "Anyone can view active services" ON public.services;
@@ -224,6 +240,8 @@ DROP POLICY IF EXISTS "Anyone can create appointments" ON public.appointments;
 DROP POLICY IF EXISTS "Admin can manage appointments" ON public.appointments;
 
 -- Políticas: Anyone can view, Admin can modify
+CREATE POLICY "Admins can manage themselves" ON public.admins FOR ALL USING (TRUE);
+
 CREATE POLICY "Anyone can view active team members" ON public.team_members FOR SELECT USING (is_active = TRUE);
 CREATE POLICY "Admin can manage team members" ON public.team_members FOR ALL USING (TRUE);
 
@@ -289,7 +307,13 @@ TRUNCATE TABLE public.service_categories CASCADE;
 TRUNCATE TABLE public.promotions CASCADE;
 TRUNCATE TABLE public.gallery CASCADE;
 TRUNCATE TABLE public.testimonials CASCADE;
+TRUNCATE TABLE public.admins CASCADE;
 DELETE FROM public.site_content;
+
+-- ADMINISTRADOR (con contraseña hasheada)
+-- Password: admin123@
+INSERT INTO public.admins (name, email, password, rol, activo) VALUES
+('Administrador Principal', 'admin@copperbeauty.com', '$2a$12$G5vX4JECCDTMYfyPYxGKLOqvgZKtKAhSVAxsIfrArnt6w0.bB8o6.', 'superadmin', TRUE);
 
 -- CATEGORÍAS DE SERVICIOS
 INSERT INTO public.service_categories (name, description, display_order) VALUES

@@ -3,47 +3,51 @@ import { supabase } from './supabaseClient'
 export const db = {
   admin: {
     findUnique: async ({ where }: any) => {
-      let query = supabase.from('team_members').select('*')
+      let query = supabase.from('admins').select('*')
       if (where.id) query = query.eq('id', where.id)
       if (where.email) query = query.eq('email', where.email)
       const { data, error } = await query.single()
       if (error) throw error
       return data ? {
         id: data.id?.toString(),
-        email: data.email || '',
-        password: '',
+        email: data.email,
+        password: data.password,
         name: data.name,
-        rol: data.role || 'admin',
-        activo: data.is_active
+        rol: data.rol,
+        permisos: data.permisos,
+        activo: data.activo
       } : null
     },
     findMany: async ({ where, orderBy }: any = {}) => {
-      let query = supabase.from('team_members').select('*')
-      if (where?.activo !== undefined) query = query.eq('is_active', where.activo)
+      let query = supabase.from('admins').select('*')
+      if (where?.activo !== undefined) query = query.eq('activo', where.activo)
       if (orderBy) {
         const field = Object.keys(orderBy)[0]
         const direction = orderBy[field] === 'asc'
-        query = query.order(field === 'name' ? 'name' : field, { ascending: direction })
+        query = query.order(field, { ascending: direction })
       }
       const { data, error } = await query
       if (error) throw error
       return data?.map(d => ({
         id: d.id?.toString(),
-        email: d.email || '',
-        password: '',
+        email: d.email,
+        password: d.password,
         name: d.name,
-        rol: d.role || 'admin',
-        activo: d.is_active
+        rol: d.rol,
+        permisos: d.permisos,
+        activo: d.activo
       })) || []
     },
     create: async ({ data }: any) => {
       const { data: result, error } = await supabase
-        .from('team_members')
+        .from('admins')
         .insert({
           name: data.name,
           email: data.email,
-          role: data.rol,
-          is_active: data.activo
+          password: data.password,
+          rol: data.rol,
+          permisos: data.permisos,
+          activo: data.activo
         })
         .select()
         .single()
@@ -51,14 +55,19 @@ export const db = {
       return result
     },
     update: async ({ where, data }: any) => {
+      const updateData: any = {
+        name: data.name,
+        email: data.email,
+        rol: data.rol,
+        permisos: data.permisos,
+        activo: data.activo
+      }
+      if (data.password) {
+        updateData.password = data.password
+      }
       const { data: result, error } = await supabase
-        .from('team_members')
-        .update({
-          name: data.name,
-          email: data.email,
-          role: data.rol,
-          is_active: data.activo
-        })
+        .from('admins')
+        .update(updateData)
         .eq('id', where.id)
         .select()
         .single()
