@@ -10,6 +10,7 @@ import makeup from "@/assets/makeup.jpg";
 import cejas from "@/assets/cejas.jpg";
 import Depilacion from "@/assets/Depilacion.jpg";
 import Faciales from "@/assets/Faciales.jpg";
+import nails from "@/assets/nails.jpg";
 
 export default function HomePage() {
   return (
@@ -43,10 +44,22 @@ export default function HomePage() {
               <p className="text-gray-700 font-montserrat leading-relaxed text-sm sm:text-base md:text-lg">
                 Relájate con manicure y pedicure spa, elige tu estilo en acrílico, gel o dips y luce nail art impecable con acabados duraderos. Nuestro equipo cuida cada detalle para que tus manos y pies se vean elegantes.
               </p>
+          <ul className="space-y-2.5 sm:space-y-3 text-gray-800 font-montserrat text-sm sm:text-base md:text-lg">
+                {[
+                  "Manicure & Pedicure",
+                  "Acrylic & Gel Nails",
+                  "Apres & Nail Art",
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-2">
+                    <span className="mt-2 h-2 w-2 rounded-full bg-[#b88a3b]"></span>
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
             <div className="relative rounded-[26px] overflow-hidden shadow-elegant aspect-[4/5] max-h-[520px] w-full max-w-md mx-auto lg:max-w-none">
               <NextImage
-                src="https://images.unsplash.com/photo-1604654894610-df63bc536371?q=80&w=1400"
+                src={nails.src}
                 alt="Nail care Copper"
                 fill
                 sizes="(min-width: 1024px) 520px, 90vw"
@@ -83,14 +96,13 @@ export default function HomePage() {
             <div className="space-y-3 sm:space-y-4">
               <h3 className="font-playfair text-xl sm:text-2xl lg:text-3xl text-[#2c1e21] font-bold">Otros servicios</h3>
               <p className="text-gray-700 font-montserrat leading-relaxed text-sm sm:text-base md:text-lg">
-                Combina tus citas de uñas con faciales, tratamientos de piel y masajes para un ritual completo. Personalizamos cada sesión para que te sientas cuidada de pies a cabeza.
+                Combina tus citas de uñas con faciales, tratamientos de piel .Personalizamos cada sesión para que te sientas cuidada de pies a cabeza.
               </p>
               <ul className="space-y-2.5 sm:space-y-3 text-gray-800 font-montserrat text-sm sm:text-base md:text-lg">
                 {[
-                  "Waxing delicado",
+                  "Waxing services",
                   "Facial treatments",
-                  "Skin treatments",
-                  "Hydrafacial treatments",
+                  "Hair treatments",
                 ].map((item) => (
                   <li key={item} className="flex items-start gap-2">
                     <span className="mt-2 h-2 w-2 rounded-full bg-[#b88a3b]"></span>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import fondo1 from "@/assets/fondo1.jpg";
 
 export default function AboutSection() {
   const [inView, setInView] = useState(false);
@@ -24,7 +25,10 @@ export default function AboutSection() {
 
   return (
     <section
-      className="py-24 md:py-28 relative overflow-hidden bg-gradient-to-b from-[#fcedf4] to-white"
+      className="py-24 md:py-28 relative overflow-hidden bg-gradient-to-b from-[#fcedf4] to-white bg-cover bg-center"
+      style={{
+        backgroundImage: `linear-gradient(135deg, rgba(252, 237, 244, 0.88), rgba(255, 245, 251, 0.92), rgba(255, 255, 255, 0.94)), url(${fondo1.src})`,
+      }}
       id="sobre-nosotros"
     >
       <div className="container mx-auto px-4 relative z-10 flex items-center justify-center">

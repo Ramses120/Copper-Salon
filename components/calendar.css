@@ -1,0 +1,120 @@
+/* Personalización del calendario react-calendar */
+
+.react-calendar-custom {
+  width: 100%;
+  border: none;
+  font-family: inherit;
+}
+
+.react-calendar-custom .react-calendar__month-view__days__day {
+  padding: 8px 4px;
+  border-radius: 6px;
+  font-size: 14px;
+  position: relative;
+}
+
+.react-calendar-custom .react-calendar__month-view__days__day:hover {
+  background-color: #f3f4f6;
+}
+
+.react-calendar-custom .react-calendar__month-view__days__day--weekend {
+  color: #666;
+}
+
+.react-calendar-custom .react-calendar__month-view__days__day.react-calendar__month-view__days__day--active,
+.react-calendar-custom .react-calendar__month-view__days__day.react-calendar__month-view__days__day--activeRange {
+  background-color: #D4533B;
+  color: white;
+  font-weight: bold;
+  border-radius: 6px;
+}
+
+.react-calendar-custom .react-calendar__month-view__days__day--otherMonth {
+  color: #d1d5db;
+}
+
+.react-calendar-custom .react-calendar__tile--now {
+  background-color: #FEE2E2;
+  border-radius: 6px;
+}
+
+.react-calendar-custom .react-calendar__navigation {
+  margin-bottom: 16px;
+  padding: 0;
+}
+
+.react-calendar-custom .react-calendar__navigation button {
+  min-width: 44px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background-color: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  color: #1f2937;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.react-calendar-custom .react-calendar__navigation button:hover {
+  background-color: #e5e7eb;
+  border-color: #d1d5db;
+}
+
+.react-calendar-custom .react-calendar__navigation__arrow {
+  flex-grow: 0;
+  width: 44px;
+  padding: 0;
+}
+
+.react-calendar-custom .react-calendar__navigation__label {
+  font-weight: 600;
+  color: #1f2937;
+  flex-grow: 1;
+  text-align: center;
+  padding: 8px 12px;
+  font-size: 16px;
+}
+
+.react-calendar-custom .react-calendar__month-view {
+  margin-top: 16px;
+}
+
+.react-calendar-custom .react-calendar__month-view__weekdays {
+  margin-bottom: 8px;
+}
+
+.react-calendar-custom .react-calendar__month-view__weekdays__weekday {
+  font-weight: 600;
+  color: #6b7280;
+  padding: 8px 4px;
+  text-align: center;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.react-calendar-custom .react-calendar__month-view__weekdays__weekday abbr {
+  text-decoration: none;
+}
+
+.react-calendar-custom .react-calendar__month-view__days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.react-calendar-custom .react-calendar__month-view__days__day {
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+/* Animación para números con reservas */
+.react-calendar-custom .react-calendar__month-view__days__day:has(> div span) {
+  background-color: #FEF2F2;
+}
+
+.react-calendar-custom .react-calendar__month-view__days__day:has(> div span):hover {
+  background-color: #FECACA;
+}

@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export async function GET(request: Request) {
   try {
@@ -15,27 +20,19 @@ export async function GET(request: Request) {
     }
 
     // Obtener todas las reservas confirmadas o pendientes para ese día y estilista
-    const bookings = await db.booking.findMany({
-      where: {
-        staffId,
-        date: new Date(fecha),
-        status: {
-          in: ["pending", "confirmed"],
-        },
-      },
-      include: {
-        services: {
-          include: {
-            service: true,
-          },
-        },
-      },
-    });
+    const { data: bookings, error: bookingsError } = await supabase
+      .from("bookings")
+      .select("*, booking_services(*, service:services(*))")
+      .eq("staff_id", staffId)
+      .eq("booking_date", fecha)
+      .in("status", ["pending", "confirmed"]);
+
+    if (bookingsError) throw bookingsError;
 
     // Generar todos los slots posibles del día (9:00 AM - 5:30 PM)
     const slots: string[] = [];
     const startHour = 9;
-    const endHour = 17; // 5:30 PM es la última cita que puede empezar
+    const endHour = 17;
     
     for (let hour = startHour; hour <= endHour; hour++) {
       slots.push(`${hour.toString().padStart(2, "0")}:00`);
@@ -47,13 +44,13 @@ export async function GET(request: Request) {
     // Marcar slots ocupados
     const unavailableSlots = new Set<string>();
 
-    for (const booking of bookings) {
-      const duracionTotal = booking.services.reduce(
-        (sum: number, bs: any) => sum + bs.service.duration,
+    for (const booking of bookings || []) {
+      const duracionTotal = (booking.booking_services || []).reduce(
+        (sum: number, bs: any) => sum + (bs.service?.duration_minutes || 60),
         0
       );
 
-      const [hours, minutes] = booking.startTime.split(":").map(Number);
+      const [hours, minutes] = booking.start_time.split(":").map(Number);
       const startTime = hours * 60 + minutes;
       const endTime = startTime + duracionTotal;
 
@@ -82,7 +79,7 @@ export async function GET(request: Request) {
   } catch (error) {
     console.error("Error checking availability:", error);
     return NextResponse.json(
-      { error: "Error al verificar disponibilidad" },
+      { error: "Error al verificar disponibilidad", details: String(error) },
       { status: 500 }
     );
   }

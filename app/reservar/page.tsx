@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -16,33 +15,25 @@ import {
   ChevronLeft,
   Calendar,
   Clock,
-  User,
-  Phone,
-  Mail,
   CheckCircle2,
   Sparkles,
+  Loader2,
 } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
 
-// Mock data
-const servicesData = [
-  { id: "1", name: "Corte + Estilo", category: "HairStyle", price: 45, duration: 45 },
-  { id: "2", name: "Color Completo", category: "HairStyle", price: 120, duration: 120 },
-  { id: "3", name: "Balayage Signature", category: "HairStyle", price: 220, duration: 180 },
-  { id: "5", name: "Makeup Social", category: "Makeup", price: 85, duration: 60 },
-  { id: "6", name: "Makeup de Novia", category: "Makeup", price: 180, duration: 120 },
-  { id: "8", name: "Manicure Clásico", category: "Nail Services", price: 30, duration: 35 },
-  { id: "9", name: "Pedicure Spa", category: "Nail Services", price: 50, duration: 50 },
-  { id: "10", name: "Gel Set", category: "Nail Services", price: 55, duration: 55 },
-  { id: "12", name: "Limpieza Profunda", category: "Skincare", price: 95, duration: 60 },
-  { id: "18", name: "Extensiones de Pestañas", category: "Lashes & Eyebrows", price: 150, duration: 90 },
-];
+interface Service {
+  id: string;
+  name: string;
+  category: { name: string } | string;
+  price: number;
+  duration: number;
+}
 
-const staffData = [
-  { id: "1", name: "María García", specialty: "Colorista & Estilista", photo: "https://i.pravatar.cc/150?img=1" },
-  { id: "2", name: "Ana Rodríguez", specialty: "Maquilladora Profesional", photo: "https://i.pravatar.cc/150?img=5" },
-  { id: "3", name: "Sofia Martínez", specialty: "Especialista en Uñas", photo: "https://i.pravatar.cc/150?img=9" },
-];
+interface Staff {
+  id: string;
+  name: string;
+  specialty?: string;
+}
 
 const timeSlots = [
   "09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
@@ -63,7 +54,41 @@ export default function ReservarPage() {
     notas: "",
   });
   const [submitted, setSubmitted] = useState(false);
-  const searchParams = useSearchParams();
+  const [loading, setLoading] = useState(true);
+  const [servicesData, setServicesData] = useState<Service[]>([]);
+  const [staffData, setStaffData] = useState<Staff[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+
+  // Efectos
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const [servicesRes, staffRes] = await Promise.all([
+          fetch("/api/services"),
+          fetch("/api/staff"),
+        ]);
+
+        if (servicesRes.ok) {
+          const servicesJson = await servicesRes.json();
+          setServicesData(servicesJson.services || []);
+        }
+
+        if (staffRes.ok) {
+          const staffJson = await staffRes.json();
+          setStaffData(staffJson.staff || []);
+        }
+      } catch (error) {
+        console.error("Error loading data:", error);
+        setError("Error cargando servicios y estilistas");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   const toggleService = (serviceId: string) => {
     setSelectedServices((prev) =>
@@ -101,39 +126,51 @@ export default function ReservarPage() {
     return true;
   };
 
-  // Pre-seleccionar servicios si vienen de /servicios
-  useEffect(() => {
-    const servicesParam = searchParams.get("services");
-    const stepParam = searchParams.get("step");
-
-    if (servicesParam) {
-      const ids = servicesParam.split(",").map((id) => id.trim()).filter(Boolean);
-      const validIds = servicesData
-        .filter((service) => ids.includes(service.id))
-        .map((s) => s.id);
-
-      if (validIds.length) {
-        setSelectedServices(validIds);
-        if (stepParam === "2") {
-          setStep(2);
-        }
-      }
+  const handleSubmit = async () => {
+    if (!clientInfo.nombre || !clientInfo.telefono) {
+      setError("Por favor completa nombre y teléfono");
+      return;
     }
-  }, [searchParams]);
 
-  const handleSubmit = () => {
-    // Aquí se enviaría la reserva al backend
-    setSubmitted(true);
+    try {
+      setSubmitting(true);
+      setError("");
+
+      const response = await fetch("/api/bookings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clienteNombre: clientInfo.nombre,
+          clienteTelefono: clientInfo.telefono,
+          clienteEmail: clientInfo.email,
+          servicios: selectedServices,
+          staffId: selectedStaff,
+          fecha: selectedDate,
+          hora: selectedTime,
+          notas: clientInfo.notas,
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Error al crear la reserva");
+      }
+
+      setSubmitted(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error desconocido");
+      console.error("Error submitting booking:", err);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  // Generate next 14 days for date selection
   const getAvailableDates = () => {
     const dates = [];
     const today = new Date();
     for (let i = 1; i <= 14; i++) {
       const date = new Date(today);
       date.setDate(today.getDate() + i);
-      // Skip Sundays (day 0)
       if (date.getDay() !== 0) {
         dates.push(date);
       }
@@ -150,6 +187,27 @@ export default function ReservarPage() {
       month: months[date.getMonth()],
     };
   };
+
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-copper-gradient">
+        <Header />
+        <section className="pt-32 pb-20">
+          <div className="container mx-auto px-4">
+            <div className="max-w-2xl mx-auto">
+              <Card className="bg-white/80 backdrop-blur-sm border-none shadow-2xl">
+                <CardContent className="p-12 text-center">
+                  <Loader2 className="mx-auto mb-4 animate-spin text-copper-red" size={48} />
+                  <p className="text-lg text-gray-600">Cargando servicios y estilistas...</p>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </section>
+        <Footer />
+      </main>
+    );
+  }
 
   if (submitted) {
     return (
@@ -207,7 +265,6 @@ export default function ReservarPage() {
   return (
     <main className="min-h-screen bg-copper-gradient">
       <Header />
-
       <section className="pt-32 pb-20">
         <div className="container mx-auto px-4">
           <div className="max-w-6xl mx-auto">
@@ -249,6 +306,7 @@ export default function ReservarPage() {
               <div className="space-y-4 animate-fade-in">
                 {servicesData.map((service) => {
                   const isSelected = selectedServices.includes(service.id);
+                  const categoryName = typeof service.category === 'string' ? service.category : service.category.name;
                   return (
                     <Card
                       key={service.id}
@@ -277,7 +335,7 @@ export default function ReservarPage() {
                               <div>
                                 <h3 className="font-semibold text-lg">{service.name}</h3>
                                 <Badge className="mt-1 bg-gray-100 text-gray-700 border-gray-200">
-                                  {service.category}
+                                  {categoryName}
                                 </Badge>
                               </div>
                             </div>
@@ -326,7 +384,6 @@ export default function ReservarPage() {
             {step === 2 && (
               <div className="space-y-6 animate-fade-in">
                 <div className="grid lg:grid-cols-2 gap-6">
-                  {/* Calendario y horas */}
                   <Card className="bg-white/85 backdrop-blur-sm">
                     <CardContent className="p-6 space-y-6">
                       <div>
@@ -392,7 +449,6 @@ export default function ReservarPage() {
                     </CardContent>
                   </Card>
 
-                  {/* Estilistas */}
                   <Card className="bg-white/85 backdrop-blur-sm">
                     <CardContent className="p-6">
                       <h3 className="font-semibold text-lg mb-4 text-center lg:text-left">
@@ -420,7 +476,7 @@ export default function ReservarPage() {
                                     <CheckCircle2 className="text-copper-red" size={18} />
                                   )}
                                 </div>
-                                <p className="text-sm text-gray-600">{staff.specialty}</p>
+                                <p className="text-sm text-gray-600">{staff.specialty || 'Especialista'}</p>
                               </CardContent>
                             </Card>
                           );
@@ -451,6 +507,12 @@ export default function ReservarPage() {
             {/* Step 3: Client Info + Summary */}
             {step === 3 && (
               <div className="animate-fade-in">
+                {error && (
+                  <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
+                    <p className="font-semibold">Error:</p>
+                    <p className="text-sm">{error}</p>
+                  </div>
+                )}
                 <div className="grid lg:grid-cols-2 gap-8">
                   <Card className="bg-white/80 backdrop-blur-sm">
                     <CardContent className="p-8">
@@ -579,18 +641,27 @@ export default function ReservarPage() {
                 </div>
 
                 <div className="flex gap-4 justify-between mt-8">
-                  <Button variant="outline" onClick={() => setStep(3)}>
+                  <Button variant="outline" onClick={() => setStep(2)}>
                     <ChevronLeft className="mr-2" />
                     Atrás
                   </Button>
                   <Button
                     variant="copper"
                     size="lg"
-                    disabled={!clientInfo.nombre || !clientInfo.telefono}
+                    disabled={!clientInfo.nombre || !clientInfo.telefono || submitting}
                     onClick={handleSubmit}
                   >
-                    <Sparkles className="mr-2" />
-                    Confirmar Reserva
+                    {submitting ? (
+                      <>
+                        <Loader2 className="mr-2 animate-spin" size={18} />
+                        Procesando...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="mr-2" />
+                        Confirmar Reserva
+                      </>
+                    )}
                   </Button>
                 </div>
               </div>

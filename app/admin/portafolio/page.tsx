@@ -56,7 +56,8 @@ export default function AdminPortafolioPage() {
       const response = await fetch('/api/portfolio');
       if (response.ok) {
         const data = await response.json();
-        setImages(data);
+        const portfolioList = Array.isArray(data) ? data : data.portfolio || [];
+        setImages(portfolioList);
       }
     } catch (error) {
       console.error('Error al cargar imágenes:', error);
@@ -106,10 +107,9 @@ export default function AdminPortafolioPage() {
     setUploading(true);
 
     try {
-      // 1. Subir imagen a Cloudinary
+      // 1. Subir imagen a Supabase Storage
       const uploadFormData = new FormData();
       uploadFormData.append('file', selectedFile);
-      uploadFormData.append('folder', 'copper/portfolio');
 
       const uploadResponse = await fetch('/api/upload', {
         method: 'POST',

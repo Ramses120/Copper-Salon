@@ -7,29 +7,29 @@ export async function GET() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const promociones = await db.promotion.findMany({
+    const promotions = await db.promotion.findMany({
       where: {
-        activa: true,
-        fechaInicio: {
+        active: true,
+        startDate: {
           lte: today,
         },
-        fechaFin: {
+        endDate: {
           gte: today,
         },
       },
       include: {
-        servicios: {
+        services: {
           include: {
-            servicio: true,
+            service: true,
           },
         },
       },
       orderBy: {
-        fechaInicio: 'desc',
+        startDate: 'desc',
       },
     });
 
-    return NextResponse.json(promociones);
+    return NextResponse.json({ promotions });
   } catch (error) {
     console.error('Error al obtener promociones activas:', error);
     return NextResponse.json(

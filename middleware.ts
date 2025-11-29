@@ -7,30 +7,45 @@ const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || "copper-beauty-salon-secret-key-2025"
 );
 
+// Rutas públicas que no requieren autenticación
+const PUBLIC_PATHS = [
+  "/",
+  "/servicios",
+  "/portafolio",
+  "/contacto",
+  "/reservar",
+  "/admin/login",
+];
+
+const PUBLIC_API_PATHS = [
+  "/api/auth",
+  "/api/bookings",
+  "/api/availability",
+  "/api/staff",
+  "/api/services",
+  "/api/categories",
+];
+
+function isPublicPath(pathname: string): boolean {
+  // Rutas públicas exactas
+  if (PUBLIC_PATHS.includes(pathname)) return true;
+  
+  // Next.js system files
+  if (pathname.startsWith("/_next") || pathname.includes(".")) return true;
+  
+  // Rutas API públicas
+  return PUBLIC_API_PATHS.some((path) => pathname.startsWith(path));
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Rutas públicas que no requieren autenticación
-  const publicPaths = [
-    "/",
-    "/servicios",
-    "/portafolio",
-    "/contacto",
-    "/reservar",
-    "/admin/login",
-  ];
-
-  // Si es una ruta pública, permitir acceso
-  if (
-    publicPaths.some((path) => pathname === path) ||
-    pathname.startsWith("/_next") ||
-    pathname.startsWith("/api/auth") ||
-    pathname.includes(".")
-  ) {
+  // Permitir rutas públicas sin verificación
+  if (isPublicPath(pathname)) {
     return NextResponse.next();
   }
 
-  // Verificar token para rutas de admin
+  // Rutas de administración protegidas
   if (pathname.startsWith("/admin")) {
     const token = request.cookies.get("auth-token");
 
@@ -42,7 +57,6 @@ export async function middleware(request: NextRequest) {
       await jwtVerify(token.value, JWT_SECRET);
       return NextResponse.next();
     } catch (error) {
-      // Token inválido o expirado
       const response = NextResponse.redirect(
         new URL("/admin/login", request.url)
       );
@@ -51,16 +65,8 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Verificar token para APIs protegidas
-  if (
-    pathname.startsWith("/api") &&
-    !pathname.startsWith("/api/auth") &&
-    !pathname.startsWith("/api/bookings") &&
-    !pathname.startsWith("/api/availability") &&
-    !pathname.startsWith("/api/staff") &&
-    !pathname.startsWith("/api/services") &&
-    !pathname.startsWith("/api/categories")
-  ) {
+  // APIs protegidas (excluyendo públicas)
+  if (pathname.startsWith("/api")) {
     const token = request.cookies.get("auth-token");
 
     if (!token) {
@@ -80,13 +86,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public folder
-     */
     "/((?!_next/static|_next/image|favicon.ico|public).*)",
   ],
 };

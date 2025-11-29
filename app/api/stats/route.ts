@@ -113,7 +113,7 @@ export async function GET() {
     // Reservas recientes
     const recentBookings = await db.booking.findMany({
       take: 10,
-      orderBy: [{ date: "desc" }, { startTime: "asc" }],
+      orderBy: [{ date: "desc" }],
       include: {
         staff: true,
         services: {

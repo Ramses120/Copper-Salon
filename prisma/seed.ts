@@ -165,19 +165,19 @@ async function main() {
     data: [
       {
         name: 'María García',
-        specialty: 'Colorista & Estilista',
+        specialties: JSON.stringify(['Colorista & Estilista']),
         phone: '7864092226',
         workSchedule: defaultSchedule,
       },
       {
         name: 'Ana Rodríguez',
-        specialty: 'Maquilladora Profesional',
+        specialties: JSON.stringify(['Maquilladora Profesional']),
         phone: '7864092226',
         workSchedule: defaultSchedule,
       },
       {
         name: 'Sofia Martínez',
-        specialty: 'Especialista en Uñas',
+        specialties: JSON.stringify(['Especialista en Uñas']),
         phone: '7864092226',
         workSchedule: defaultSchedule,
       },

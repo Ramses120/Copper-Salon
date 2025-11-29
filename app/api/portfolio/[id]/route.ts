@@ -5,9 +5,10 @@ import { getSession } from '@/lib/auth';
 // DELETE - Eliminar imagen del portafolio
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id: idStr } = await params;
     // Verificar autenticación
     const session = await getSession();
     if (!session) {
@@ -17,7 +18,7 @@ export async function DELETE(
       );
     }
 
-    const id = parseInt(params.id);
+    const id = parseInt(idStr);
 
     // Eliminar imagen
     await db.portfolioImage.delete({

@@ -22,6 +22,12 @@ interface AdminLayoutProps {
 export default function AdminLayout({ children }: AdminLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
+  
+  // Early return for login page - check this FIRST before any hooks
+  if (pathname === "/admin/login") {
+    return <>{children}</>;
+  }
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -57,13 +63,20 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     }
   };
 
-  // Don't show layout on login page
-  if (pathname === "/admin/login" || loading) {
-    return <>{children}</>;
+  // Show loading state while checking auth
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-600">Cargando...</p>
+        </div>
+      </div>
+    );
   }
 
   const menuItems = [
     { name: "Dashboard", icon: LayoutDashboard, path: "/admin/dashboard" },
+    { name: "Clientes", icon: Users, path: "/admin/clientes" },
     { name: "Servicios", icon: Scissors, path: "/admin/servicios" },
     { name: "Reservas", icon: Calendar, path: "/admin/reservas" },
     { name: "Estilistas", icon: Users, path: "/admin/estilistas" },

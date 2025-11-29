@@ -9,7 +9,7 @@ export async function GET() {
       orderBy: { createdAt: 'desc' },
     });
 
-    return NextResponse.json(images);
+    return NextResponse.json({ portfolio: images });
   } catch (error) {
     console.error('Error al obtener imágenes:', error);
     return NextResponse.json(

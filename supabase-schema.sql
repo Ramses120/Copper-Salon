@@ -7,6 +7,25 @@
 BEGIN;
 
 -- ===========================
+-- 0. LIMPIAR TABLAS EXISTENTES (Si hay conflicto de versiones)
+-- ===========================
+
+DROP TABLE IF EXISTS public.booking_services CASCADE;
+DROP TABLE IF EXISTS public.bookings CASCADE;
+DROP TABLE IF EXISTS public.team_member_services CASCADE;
+DROP TABLE IF EXISTS public.staff_schedules CASCADE;
+DROP TABLE IF EXISTS public.services CASCADE;
+DROP TABLE IF EXISTS public.categories CASCADE;
+DROP TABLE IF EXISTS public.customers CASCADE;
+DROP TABLE IF EXISTS public.portfolio_images CASCADE;
+DROP TABLE IF EXISTS public.promotions CASCADE;
+DROP TABLE IF EXISTS public.testimonials CASCADE;
+DROP TABLE IF EXISTS public.admins CASCADE;
+DROP TABLE IF EXISTS public.site_content CASCADE;
+DROP TABLE IF EXISTS public.site_settings CASCADE;
+DROP TABLE IF EXISTS public.service_categories CASCADE;
+
+-- ===========================
 -- 1. CREAR TABLAS
 -- ===========================
 
@@ -22,34 +41,91 @@ CREATE TABLE IF NOT EXISTS public.admins (
   created_at   TIMESTAMPTZ DEFAULT NOW()
 );
 
--- EQUIPO
-CREATE TABLE IF NOT EXISTS public.team_members (
+-- CATEGORÍAS DE SERVICIOS (NUEVA ESTRUCTURA)
+CREATE TABLE IF NOT EXISTS public.categories (
   id           BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  name         TEXT NOT NULL,
-  role         TEXT,
-  image        TEXT,
-  bio          TEXT,
-  phone        TEXT,
-  email        TEXT,
-  specialty    TEXT,
-  is_active    BOOLEAN DEFAULT TRUE,
+  name         TEXT NOT NULL UNIQUE,
+  description  TEXT,
+  display_order INTEGER DEFAULT 0,
+  active       BOOLEAN DEFAULT TRUE,
   created_at   TIMESTAMPTZ DEFAULT NOW()
 );
 
--- SERVICIOS
+-- SERVICIOS (ACTUALIZADO CON RELACIÓN A CATEGORÍAS)
 CREATE TABLE IF NOT EXISTS public.services (
   id               BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  category         TEXT NOT NULL,
+  category_id      BIGINT NOT NULL REFERENCES public.categories(id) ON DELETE CASCADE,
   name             TEXT NOT NULL,
   description      TEXT,
   duration_minutes INTEGER NOT NULL DEFAULT 60,
-  price            NUMERIC(10,2),
+  price            NUMERIC(10,2) NOT NULL DEFAULT 0,
   active           BOOLEAN DEFAULT TRUE,
   featured         BOOLEAN DEFAULT FALSE,
-  created_at       TIMESTAMPTZ DEFAULT NOW()
+  created_at       TIMESTAMPTZ DEFAULT NOW(),
+  updated_at       TIMESTAMPTZ DEFAULT NOW()
 );
 
--- CATEGORÍAS
+-- ESTILISTAS/STAFF (ACTUALIZADO)
+CREATE TABLE IF NOT EXISTS public.staff (
+  id           BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  name         TEXT NOT NULL,
+  phone        TEXT,
+  specialty    TEXT,
+  active       BOOLEAN DEFAULT TRUE,
+  work_schedule TEXT,
+  email        TEXT,
+  photo_url    TEXT,
+  created_at   TIMESTAMPTZ DEFAULT NOW(),
+  updated_at   TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- CLIENTES (NUEVA TABLA)
+CREATE TABLE IF NOT EXISTS public.customers (
+  id           BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  name         TEXT NOT NULL,
+  phone        TEXT NOT NULL UNIQUE,
+  email        TEXT,
+  address      TEXT,
+  city         TEXT,
+  notes        TEXT,
+  active       BOOLEAN DEFAULT TRUE,
+  created_at   TIMESTAMPTZ DEFAULT NOW(),
+  updated_at   TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- RESERVAS (NUEVA TABLA)
+CREATE TABLE IF NOT EXISTS public.bookings (
+  id               BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  customer_id      BIGINT NOT NULL REFERENCES public.customers(id) ON DELETE CASCADE,
+  booking_date     DATE NOT NULL,
+  start_time       TIME NOT NULL,
+  end_time         TIME,
+  staff_id         BIGINT REFERENCES public.staff(id) ON DELETE SET NULL,
+  status           TEXT NOT NULL DEFAULT 'pending',
+  notes            TEXT,
+  created_at       TIMESTAMPTZ DEFAULT NOW(),
+  updated_at       TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- SERVICIOS POR RESERVA (TABLA DE UNIÓN - NUEVA)
+CREATE TABLE IF NOT EXISTS public.booking_services (
+  id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  booking_id BIGINT NOT NULL REFERENCES public.bookings(id) ON DELETE CASCADE,
+  service_id BIGINT NOT NULL REFERENCES public.services(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (booking_id, service_id)
+);
+
+-- GALERÍA DE PORTAFOLIO (NUEVA)
+CREATE TABLE IF NOT EXISTS public.portfolio_images (
+  id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  url        TEXT NOT NULL,
+  category   TEXT NOT NULL,
+  caption    TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- CATEGORÍAS DE SERVICIOS LEGACY (Mantenida para compatibilidad)
 CREATE TABLE IF NOT EXISTS public.service_categories (
   id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   name          TEXT NOT NULL UNIQUE,
@@ -63,7 +139,7 @@ CREATE TABLE IF NOT EXISTS public.service_categories (
 -- RELACIÓN EQUIPO-SERVICIOS
 CREATE TABLE IF NOT EXISTS public.team_member_services (
   id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  team_member_id  BIGINT NOT NULL REFERENCES public.team_members(id) ON DELETE CASCADE,
+  team_member_id  BIGINT NOT NULL REFERENCES public.staff(id) ON DELETE CASCADE,
   service_id      BIGINT NOT NULL REFERENCES public.services(id) ON DELETE CASCADE,
   created_at      TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE (team_member_id, service_id)
@@ -72,7 +148,7 @@ CREATE TABLE IF NOT EXISTS public.team_member_services (
 -- HORARIOS
 CREATE TABLE IF NOT EXISTS public.staff_schedules (
   id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  team_member_id  BIGINT NOT NULL REFERENCES public.team_members(id) ON DELETE CASCADE,
+  team_member_id  BIGINT NOT NULL REFERENCES public.staff(id) ON DELETE CASCADE,
   weekday         SMALLINT NOT NULL CHECK (weekday BETWEEN 0 AND 6),
   start_time      TIME NOT NULL,
   end_time        TIME NOT NULL,
@@ -97,60 +173,6 @@ CREATE TABLE IF NOT EXISTS public.promotions (
   updated_at       TIMESTAMPTZ DEFAULT NOW()
 );
 
--- CITAS
-CREATE TABLE IF NOT EXISTS public.appointments (
-  id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  client_name   TEXT,
-  phone         TEXT,
-  email         TEXT,
-  persons       INTEGER NOT NULL DEFAULT 1,
-  stylist_id    BIGINT REFERENCES public.team_members(id),
-  promotion_id  BIGINT REFERENCES public.promotions(id),
-  date          DATE,
-  start_time    TIME,
-  end_time      TIME,
-  status        TEXT NOT NULL DEFAULT 'pending',
-  notes         TEXT,
-  created_at    TIMESTAMPTZ DEFAULT NOW()
-);
-
--- SERVICIOS DE CITA
-CREATE TABLE IF NOT EXISTS public.appointment_services (
-  id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  appointment_id  BIGINT NOT NULL REFERENCES public.appointments(id) ON DELETE CASCADE,
-  service_id      BIGINT NOT NULL REFERENCES public.services(id) ON DELETE CASCADE,
-  created_at      TIMESTAMPTZ DEFAULT NOW()
-);
-
--- GALERÍA
-CREATE TABLE IF NOT EXISTS public.gallery (
-  id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  title       TEXT,
-  image_url   TEXT NOT NULL,
-  visible     BOOLEAN DEFAULT TRUE,
-  is_featured BOOLEAN DEFAULT FALSE,
-  created_at  TIMESTAMPTZ DEFAULT NOW()
-);
-
--- CONFIGURACIÓN DEL SITIO
-CREATE TABLE IF NOT EXISTS public.site_settings (
-  id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  key         TEXT NOT NULL UNIQUE,
-  value       JSONB,
-  created_at  TIMESTAMPTZ DEFAULT NOW(),
-  updated_at  TIMESTAMPTZ DEFAULT NOW()
-);
-
--- CONTENIDO DEL SITIO
-CREATE TABLE IF NOT EXISTS public.site_content (
-  id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  section    TEXT NOT NULL UNIQUE,
-  content    JSONB NOT NULL,
-  active     BOOLEAN DEFAULT TRUE,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
 -- TESTIMONIOS
 CREATE TABLE IF NOT EXISTS public.testimonials (
   id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -164,19 +186,48 @@ CREATE TABLE IF NOT EXISTS public.testimonials (
   created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- CONTENIDO DEL SITIO
+CREATE TABLE IF NOT EXISTS public.site_content (
+  id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  section    TEXT NOT NULL UNIQUE,
+  content    JSONB NOT NULL,
+  active     BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- CONFIGURACIÓN DEL SITIO
+CREATE TABLE IF NOT EXISTS public.site_settings (
+  id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  setting    TEXT NOT NULL UNIQUE,
+  value      JSONB NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- ===========================
 -- 2. ÍNDICES
 -- ===========================
 
 CREATE INDEX IF NOT EXISTS idx_admins_email ON public.admins (email);
 CREATE INDEX IF NOT EXISTS idx_admins_activo ON public.admins (activo);
-CREATE INDEX IF NOT EXISTS idx_team_members_active ON public.team_members (is_active);
-CREATE INDEX IF NOT EXISTS idx_services_category ON public.services (category);
+CREATE INDEX IF NOT EXISTS idx_categories_active ON public.categories (active, display_order);
+CREATE INDEX IF NOT EXISTS idx_services_category_id ON public.services (category_id);
 CREATE INDEX IF NOT EXISTS idx_services_active ON public.services (active);
-CREATE INDEX IF NOT EXISTS idx_service_categories_active ON public.service_categories (active, display_order);
-CREATE INDEX IF NOT EXISTS idx_appointments_date_stylist ON public.appointments (date, stylist_id, start_time);
+CREATE INDEX IF NOT EXISTS idx_staff_active ON public.staff (active);
+CREATE INDEX IF NOT EXISTS idx_customers_phone ON public.customers (phone);
+CREATE INDEX IF NOT EXISTS idx_customers_name ON public.customers (name);
+CREATE INDEX IF NOT EXISTS idx_customers_active ON public.customers (active);
+CREATE INDEX IF NOT EXISTS idx_bookings_date ON public.bookings (booking_date);
+CREATE INDEX IF NOT EXISTS idx_bookings_customer_id ON public.bookings (customer_id);
+CREATE INDEX IF NOT EXISTS idx_bookings_staff_id ON public.bookings (staff_id);
+CREATE INDEX IF NOT EXISTS idx_bookings_status ON public.bookings (status);
+CREATE INDEX IF NOT EXISTS idx_booking_services_booking_id ON public.booking_services (booking_id);
+CREATE INDEX IF NOT EXISTS idx_booking_services_service_id ON public.booking_services (service_id);
+CREATE INDEX IF NOT EXISTS idx_portfolio_category ON public.portfolio_images (category);
 CREATE INDEX IF NOT EXISTS idx_promotions_active ON public.promotions (is_active, show_on_site);
 CREATE INDEX IF NOT EXISTS idx_testimonials_visible ON public.testimonials (visible, is_featured);
+CREATE INDEX IF NOT EXISTS idx_service_categories_active ON public.service_categories (active, display_order);
 
 -- ===========================
 -- 3. TRIGGERS
@@ -213,66 +264,69 @@ CREATE TRIGGER update_site_content_updated_at
 -- ===========================
 
 ALTER TABLE public.admins ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.team_members ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.services ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.staff ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.customers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.bookings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.booking_services ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.portfolio_images ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.service_categories ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.gallery ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.promotions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.appointments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.testimonials ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.site_content ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.site_settings ENABLE ROW LEVEL SECURITY;
 
 -- Eliminar políticas existentes
 DROP POLICY IF EXISTS "Admins can manage themselves" ON public.admins;
-DROP POLICY IF EXISTS "Anyone can view active team members" ON public.team_members;
-DROP POLICY IF EXISTS "Admin can manage team members" ON public.team_members;
+DROP POLICY IF EXISTS "Anyone can view active categories" ON public.categories;
+DROP POLICY IF EXISTS "Admin can manage categories" ON public.categories;
 DROP POLICY IF EXISTS "Anyone can view active services" ON public.services;
 DROP POLICY IF EXISTS "Admin can manage services" ON public.services;
-DROP POLICY IF EXISTS "Anyone can view active categories" ON public.service_categories;
-DROP POLICY IF EXISTS "Admin can manage categories" ON public.service_categories;
-DROP POLICY IF EXISTS "Anyone can view visible gallery" ON public.gallery;
-DROP POLICY IF EXISTS "Admin can manage gallery" ON public.gallery;
-DROP POLICY IF EXISTS "Anyone can view visible testimonials" ON public.testimonials;
-DROP POLICY IF EXISTS "Admin can manage testimonials" ON public.testimonials;
-DROP POLICY IF EXISTS "Anyone can view active promotions" ON public.promotions;
-DROP POLICY IF EXISTS "Admin can manage promotions" ON public.promotions;
-DROP POLICY IF EXISTS "Anyone can view appointments" ON public.appointments;
-DROP POLICY IF EXISTS "Anyone can create appointments" ON public.appointments;
-DROP POLICY IF EXISTS "Admin can manage appointments" ON public.appointments;
+DROP POLICY IF EXISTS "Anyone can view active staff" ON public.staff;
+DROP POLICY IF EXISTS "Admin can manage staff" ON public.staff;
+DROP POLICY IF EXISTS "Anyone can view customers" ON public.customers;
+DROP POLICY IF EXISTS "Admin can manage customers" ON public.customers;
+DROP POLICY IF EXISTS "Anyone can view bookings" ON public.bookings;
+DROP POLICY IF EXISTS "Anyone can create bookings" ON public.bookings;
+DROP POLICY IF EXISTS "Admin can manage bookings" ON public.bookings;
+DROP POLICY IF EXISTS "Anyone can view portfolio" ON public.portfolio_images;
+DROP POLICY IF EXISTS "Admin can manage portfolio" ON public.portfolio_images;
 
--- Políticas: Anyone can view, Admin can modify
+-- Políticas RLS
 CREATE POLICY "Admins can manage themselves" ON public.admins FOR ALL USING (TRUE);
 
-CREATE POLICY "Anyone can view active team members" ON public.team_members FOR SELECT USING (is_active = TRUE);
-CREATE POLICY "Admin can manage team members" ON public.team_members FOR ALL USING (TRUE);
+CREATE POLICY "Anyone can view active categories" ON public.categories FOR SELECT USING (active = TRUE);
+CREATE POLICY "Admin can manage categories" ON public.categories FOR ALL USING (TRUE);
 
 CREATE POLICY "Anyone can view active services" ON public.services FOR SELECT USING (active = TRUE);
 CREATE POLICY "Admin can manage services" ON public.services FOR ALL USING (TRUE);
 
-CREATE POLICY "Anyone can view active categories" ON public.service_categories FOR SELECT USING (active = TRUE);
-CREATE POLICY "Admin can manage categories" ON public.service_categories FOR ALL USING (TRUE);
+CREATE POLICY "Anyone can view active staff" ON public.staff FOR SELECT USING (active = TRUE);
+CREATE POLICY "Admin can manage staff" ON public.staff FOR ALL USING (TRUE);
 
-CREATE POLICY "Anyone can view visible gallery" ON public.gallery FOR SELECT USING (visible = TRUE);
-CREATE POLICY "Admin can manage gallery" ON public.gallery FOR ALL USING (TRUE);
+CREATE POLICY "Anyone can view customers" ON public.customers FOR SELECT USING (TRUE);
+CREATE POLICY "Admin can manage customers" ON public.customers FOR ALL USING (TRUE);
 
-CREATE POLICY "Anyone can view visible testimonials" ON public.testimonials FOR SELECT USING (visible = TRUE);
-CREATE POLICY "Admin can manage testimonials" ON public.testimonials FOR ALL USING (TRUE);
+CREATE POLICY "Anyone can view bookings" ON public.bookings FOR SELECT USING (TRUE);
+CREATE POLICY "Anyone can create bookings" ON public.bookings FOR INSERT WITH CHECK (TRUE);
+CREATE POLICY "Admin can manage bookings" ON public.bookings FOR ALL USING (TRUE);
 
-CREATE POLICY "Anyone can view active promotions" ON public.promotions FOR SELECT USING (is_active = TRUE);
-CREATE POLICY "Admin can manage promotions" ON public.promotions FOR ALL USING (TRUE);
-
-CREATE POLICY "Anyone can view appointments" ON public.appointments FOR SELECT USING (TRUE);
-CREATE POLICY "Anyone can create appointments" ON public.appointments FOR INSERT WITH CHECK (TRUE);
-CREATE POLICY "Admin can manage appointments" ON public.appointments FOR ALL USING (TRUE);
+CREATE POLICY "Anyone can view portfolio" ON public.portfolio_images FOR SELECT USING (TRUE);
+CREATE POLICY "Admin can manage portfolio" ON public.portfolio_images FOR ALL USING (TRUE);
 
 -- ===========================
 -- 5. STORAGE BUCKET
 -- ===========================
 
+-- Crear buckets para imágenes
 INSERT INTO storage.buckets (id, name, public)
-VALUES ('images', 'images', TRUE)
+VALUES 
+  ('images', 'images', TRUE),
+  ('portfolio', 'portfolio', TRUE)
 ON CONFLICT (id) DO NOTHING;
 
--- Storage policies
+-- Storage policies para bucket 'images'
 DROP POLICY IF EXISTS "Public access to images" ON storage.objects;
 CREATE POLICY "Public access to images"
   ON storage.objects FOR SELECT
@@ -293,135 +347,112 @@ CREATE POLICY "Anyone can delete images"
   ON storage.objects FOR DELETE
   USING (bucket_id = 'images');
 
+-- Storage policies para bucket 'portfolio'
+DROP POLICY IF EXISTS "Public Read Access" ON storage.objects;
+CREATE POLICY "Public Read Access"
+  ON storage.objects FOR SELECT
+  USING (bucket_id = 'portfolio');
+
+DROP POLICY IF EXISTS "Anyone can upload to portfolio" ON storage.objects;
+CREATE POLICY "Anyone can upload to portfolio"
+  ON storage.objects FOR INSERT
+  WITH CHECK (bucket_id = 'portfolio');
+
+DROP POLICY IF EXISTS "Anyone can delete from portfolio" ON storage.objects;
+CREATE POLICY "Anyone can delete from portfolio"
+  ON storage.objects FOR DELETE
+  USING (bucket_id = 'portfolio');
+
 -- ===========================
 -- 6. DATOS INICIALES
 -- ===========================
-
--- Limpiar datos existentes
-TRUNCATE TABLE public.appointment_services CASCADE;
-TRUNCATE TABLE public.appointments CASCADE;
-TRUNCATE TABLE public.team_member_services CASCADE;
-TRUNCATE TABLE public.staff_schedules CASCADE;
-TRUNCATE TABLE public.services CASCADE;
-TRUNCATE TABLE public.service_categories CASCADE;
-TRUNCATE TABLE public.promotions CASCADE;
-TRUNCATE TABLE public.gallery CASCADE;
-TRUNCATE TABLE public.testimonials CASCADE;
-TRUNCATE TABLE public.admins CASCADE;
-DELETE FROM public.site_content;
 
 -- ADMINISTRADOR (con contraseña hasheada)
 -- Password: admin123@
 INSERT INTO public.admins (name, email, password, rol, activo) VALUES
 ('Administrador Principal', 'admin@copperbeauty.com', '$2a$12$G5vX4JECCDTMYfyPYxGKLOqvgZKtKAhSVAxsIfrArnt6w0.bB8o6.', 'superadmin', TRUE);
 
--- CATEGORÍAS DE SERVICIOS
-INSERT INTO public.service_categories (name, description, display_order) VALUES
-('Cabello', 'Cortes, coloración y peinados profesionales', 1),
-('Depilación', 'Servicios de depilación con cera para todo el cuerpo', 2),
-('Cuidado Facial', 'Tratamientos faciales y cuidado de la piel', 3),
-('Cejas y Pestañas', 'Servicios especializados para cejas y pestañas', 4),
-('Uñas', 'Manicure, pedicure y tratamientos de uñas', 5);
+-- CLIENTES DE EJEMPLO
+INSERT INTO public.customers (name, phone, email, address, city, notes) VALUES
+('María González', '+1-305-555-1234', 'maria@email.com', '123 Calle Principal', 'Miami', 'Cliente frecuente'),
+('Sofia Martínez', '+1-305-555-5678', 'sofia@email.com', '456 Avenida Central', 'Miami', 'Prefiere servicios de cabello'),
+('Ana Rodríguez', '+1-305-555-9101', 'ana@email.com', '789 Calle Segunda', 'Miami', 'Alérgica a productos químicos'),
+('Isabella Torres', '+1-305-555-1121', 'isabella@email.com', '321 Calle Tercera', 'Miami', 'Cliente VIP'),
+('Valentina López', '+1-305-555-3141', 'valentina@email.com', '654 Avenida Norte', 'Miami', 'Depilación brasileña semanal'),
+('Camila Hernández', '+1-305-555-5161', 'camila@email.com', '987 Calle Cuarta', 'Miami', 'Balayage cada 2 meses'),
+('Lucía Ramírez', '+1-305-555-7181', 'lucia@email.com', '147 Avenida Sur', 'Miami', 'Manicure semanal'),
+('Daniela Castro', '+1-305-555-9202', 'daniela@email.com', '258 Calle Quinta', 'Miami', 'Cejas con henna mensual');
+
+-- CATEGORÍAS DE SERVICIOS (Nueva estructura) - PRIMERO!
+INSERT INTO public.categories (name, description, display_order, active) VALUES
+('Cabello', 'Cortes, coloración y peinados profesionales', 1, TRUE),
+('Depilación', 'Servicios de depilación con cera para todo el cuerpo', 2, TRUE),
+('Cuidado Facial', 'Tratamientos faciales y cuidado de la piel', 3, TRUE),
+('Cejas y Pestañas', 'Servicios especializados para cejas y pestañas', 4, TRUE),
+('Uñas', 'Manicure, pedicure y tratamientos de uñas', 5, TRUE);
 
 -- SERVICIOS DE CABELLO
-INSERT INTO public.services (category, name, description, duration_minutes, price, active, featured) VALUES
-('Cabello', 'Women''s Cut', 'Corte de cabello para mujer', 45, 25.00, TRUE, TRUE),
-('Cabello', 'Hairstyle', 'Peinado profesional', 60, 30.00, TRUE, FALSE),
-('Cabello', 'Blowout', 'Secado y peinado con brushing', 45, 35.00, TRUE, TRUE),
-('Cabello', 'Men''s Cut', 'Corte de cabello para hombre', 30, 20.00, TRUE, FALSE),
-('Cabello', 'Kids Cut', 'Corte de cabello infantil', 30, 15.00, TRUE, FALSE),
-('Cabello', 'Partial Highlights', 'Mechas parciales', 120, 150.00, TRUE, TRUE),
-('Cabello', 'Full Highlights', 'Mechas completas', 150, 200.00, TRUE, TRUE),
-('Cabello', 'Balayage', 'Técnica de coloración balayage', 180, 175.00, TRUE, TRUE);
+INSERT INTO public.services (category_id, name, description, duration_minutes, price, active, featured) VALUES
+((SELECT id FROM public.categories WHERE name = 'Cabello'), 'Women''s Cut', 'Corte de cabello para mujer', 45, 25.00, TRUE, TRUE),
+((SELECT id FROM public.categories WHERE name = 'Cabello'), 'Hairstyle', 'Peinado profesional', 60, 30.00, TRUE, FALSE),
+((SELECT id FROM public.categories WHERE name = 'Cabello'), 'Blowout', 'Secado y peinado con brushing', 45, 35.00, TRUE, TRUE),
+((SELECT id FROM public.categories WHERE name = 'Cabello'), 'Men''s Cut', 'Corte de cabello para hombre', 30, 20.00, TRUE, FALSE),
+((SELECT id FROM public.categories WHERE name = 'Cabello'), 'Kids Cut', 'Corte de cabello infantil', 30, 15.00, TRUE, FALSE),
+((SELECT id FROM public.categories WHERE name = 'Cabello'), 'Partial Highlights', 'Mechas parciales', 120, 150.00, TRUE, TRUE),
+((SELECT id FROM public.categories WHERE name = 'Cabello'), 'Full Highlights', 'Mechas completas', 150, 200.00, TRUE, TRUE),
+((SELECT id FROM public.categories WHERE name = 'Cabello'), 'Balayage', 'Técnica de coloración balayage', 180, 175.00, TRUE, TRUE);
 
 -- SERVICIOS DE DEPILACIÓN
-INSERT INTO public.services (category, name, description, duration_minutes, price, active, featured) VALUES
-('Depilación', 'Hands Wax', 'Depilación de manos', 15, 15.00, TRUE, FALSE),
-('Depilación', 'Arms Wax (Full)', 'Depilación de brazos completos', 30, 40.00, TRUE, FALSE),
-('Depilación', 'Arms Wax (Half)', 'Depilación de medio brazo', 20, 25.00, TRUE, FALSE),
-('Depilación', 'Back Wax (Full)', 'Depilación de espalda completa', 45, 60.00, TRUE, FALSE),
-('Depilación', 'Back Wax (Upper)', 'Depilación de espalda superior', 20, 20.00, TRUE, FALSE),
-('Depilación', 'Back Wax (Mid Section)', 'Depilación de espalda media', 20, 20.00, TRUE, FALSE),
-('Depilación', 'Back Wax (Lower)', 'Depilación de espalda baja', 20, 20.00, TRUE, FALSE),
-('Depilación', 'Beard Wax', 'Depilación de barba', 20, 25.00, TRUE, FALSE),
-('Depilación', 'Beard Facial', 'Facial con depilación de barba', 45, 45.00, TRUE, FALSE),
-('Depilación', 'Brow Wax', 'Depilación de cejas', 15, 15.00, TRUE, TRUE),
-('Depilación', 'Bikini Line', 'Depilación línea de bikini', 20, 25.00, TRUE, FALSE),
-('Depilación', 'Bikini Full', 'Depilación bikini completo', 30, 45.00, TRUE, FALSE),
-('Depilación', 'Brazilian Bikini Wax', 'Depilación brasileña mujer', 45, 50.00, TRUE, TRUE),
-('Depilación', 'Brazilian Bikini Mens Wax', 'Depilación brasileña hombre', 50, 75.00, TRUE, FALSE),
-('Depilación', 'Chest Wax', 'Depilación de pecho', 30, 25.00, TRUE, FALSE),
-('Depilación', 'Chin Wax', 'Depilación de mentón', 10, 10.00, TRUE, FALSE),
-('Depilación', 'Ears Wax', 'Depilación de orejas', 10, 12.00, TRUE, FALSE),
-('Depilación', 'Full Face Wax', 'Depilación facial completa', 30, 35.00, TRUE, TRUE),
-('Depilación', 'Full Body Wax', 'Depilación corporal completa', 180, 370.00, TRUE, TRUE),
-('Depilación', 'Full Butt Wax', 'Depilación de glúteos', 20, 20.00, TRUE, FALSE),
-('Depilación', 'Forehead Wax', 'Depilación de frente', 10, 8.00, TRUE, FALSE),
-('Depilación', 'Lip Wax', 'Depilación de labio superior', 10, 10.00, TRUE, FALSE),
-('Depilación', 'Legs Wax (Upper)', 'Depilación de piernas superiores', 30, 35.00, TRUE, FALSE),
-('Depilación', 'Legs Wax (Lower)', 'Depilación de piernas inferiores', 30, 35.00, TRUE, FALSE),
-('Depilación', 'Legs Wax (Full)', 'Depilación de piernas completas', 50, 60.00, TRUE, TRUE),
-('Depilación', 'Neck Wax', 'Depilación de cuello', 10, 12.00, TRUE, FALSE),
-('Depilación', 'Nose Wax', 'Depilación de nariz', 10, 12.00, TRUE, FALSE),
-('Depilación', 'Sideburns Wax', 'Depilación de patillas', 10, 10.00, TRUE, FALSE),
-('Depilación', 'Shoulders Wax', 'Depilación de hombros', 20, 20.00, TRUE, FALSE),
-('Depilación', 'Stomach Wax (Full)', 'Depilación de abdomen completo', 25, 25.00, TRUE, FALSE),
-('Depilación', 'Stomach Strip', 'Depilación línea del abdomen', 10, 5.00, TRUE, FALSE),
-('Depilación', 'Underarm Wax', 'Depilación de axilas', 15, 20.00, TRUE, FALSE),
-('Depilación', 'Men Underarm Wax', 'Depilación de axilas hombre', 15, 20.00, TRUE, FALSE);
+INSERT INTO public.services (category_id, name, description, duration_minutes, price, active, featured) VALUES
+((SELECT id FROM public.categories WHERE name = 'Depilación'), 'Hands Wax', 'Depilación de manos', 15, 15.00, TRUE, FALSE),
+((SELECT id FROM public.categories WHERE name = 'Depilación'), 'Arms Wax (Full)', 'Depilación de brazos completos', 30, 40.00, TRUE, FALSE),
+((SELECT id FROM public.categories WHERE name = 'Depilación'), 'Arms Wax (Half)', 'Depilación de medio brazo', 20, 25.00, TRUE, FALSE),
+((SELECT id FROM public.categories WHERE name = 'Depilación'), 'Back Wax (Full)', 'Depilación de espalda completa', 45, 60.00, TRUE, FALSE),
+((SELECT id FROM public.categories WHERE name = 'Depilación'), 'Brow Wax', 'Depilación de cejas', 15, 15.00, TRUE, TRUE),
+((SELECT id FROM public.categories WHERE name = 'Depilación'), 'Brazilian Bikini Wax', 'Depilación brasileña mujer', 45, 50.00, TRUE, TRUE),
+((SELECT id FROM public.categories WHERE name = 'Depilación'), 'Full Face Wax', 'Depilación facial completa', 30, 35.00, TRUE, TRUE),
+((SELECT id FROM public.categories WHERE name = 'Depilación'), 'Full Body Wax', 'Depilación corporal completa', 180, 370.00, TRUE, TRUE),
+((SELECT id FROM public.categories WHERE name = 'Depilación'), 'Legs Wax (Full)', 'Depilación de piernas completas', 50, 60.00, TRUE, TRUE),
+((SELECT id FROM public.categories WHERE name = 'Depilación'), 'Underarm Wax', 'Depilación de axilas', 15, 20.00, TRUE, FALSE);
 
 -- SERVICIOS DE CUIDADO FACIAL
-INSERT INTO public.services (category, name, description, duration_minutes, price, active, featured) VALUES
-('Cuidado Facial', 'Basic Facial', 'Facial básico', 60, 75.00, TRUE, TRUE),
-('Cuidado Facial', 'Facial & Hydrojelly Mask', 'Facial con mascarilla hydrojelly', 75, 85.00, TRUE, TRUE),
-('Cuidado Facial', 'Facial & Peeling', 'Facial con peeling', 75, 95.00, TRUE, TRUE),
-('Cuidado Facial', 'Hydrofacial', 'Tratamiento hydrofacial', 90, 100.00, TRUE, TRUE);
+INSERT INTO public.services (category_id, name, description, duration_minutes, price, active, featured) VALUES
+((SELECT id FROM public.categories WHERE name = 'Cuidado Facial'), 'Basic Facial', 'Facial básico', 60, 75.00, TRUE, TRUE),
+((SELECT id FROM public.categories WHERE name = 'Cuidado Facial'), 'Facial & Hydrojelly Mask', 'Facial con mascarilla hydrojelly', 75, 85.00, TRUE, TRUE),
+((SELECT id FROM public.categories WHERE name = 'Cuidado Facial'), 'Facial & Peeling', 'Facial con peeling', 75, 95.00, TRUE, TRUE),
+((SELECT id FROM public.categories WHERE name = 'Cuidado Facial'), 'Hydrofacial', 'Tratamiento hydrofacial', 90, 100.00, TRUE, TRUE);
 
 -- SERVICIOS DE CEJAS Y PESTAÑAS
-INSERT INTO public.services (category, name, description, duration_minutes, price, active, featured) VALUES
-('Cejas y Pestañas', 'Lash Lifting', 'Elevación de pestañas', 60, 40.00, TRUE, TRUE),
-('Cejas y Pestañas', 'Lash Extension (Classic)', 'Extensiones de pestañas clásicas', 120, 100.00, TRUE, TRUE),
-('Cejas y Pestañas', 'Lash Extension Refill (3 weeks)', 'Relleno de extensiones de pestañas', 60, 50.00, TRUE, FALSE),
-('Cejas y Pestañas', 'Eyelash Removal', 'Remoción de extensiones de pestañas', 30, 20.00, TRUE, FALSE),
-('Cejas y Pestañas', 'Brows Henna', 'Henna para cejas', 45, 40.00, TRUE, TRUE),
-('Cejas y Pestañas', 'Brows Lamination + Tint', 'Laminado y tinte de cejas', 60, 40.00, TRUE, TRUE);
+INSERT INTO public.services (category_id, name, description, duration_minutes, price, active, featured) VALUES
+((SELECT id FROM public.categories WHERE name = 'Cejas y Pestañas'), 'Lash Lifting', 'Elevación de pestañas', 60, 40.00, TRUE, TRUE),
+((SELECT id FROM public.categories WHERE name = 'Cejas y Pestañas'), 'Lash Extension (Classic)', 'Extensiones de pestañas clásicas', 120, 100.00, TRUE, TRUE),
+((SELECT id FROM public.categories WHERE name = 'Cejas y Pestañas'), 'Lash Extension Refill', 'Relleno de extensiones de pestañas', 60, 50.00, TRUE, FALSE),
+((SELECT id FROM public.categories WHERE name = 'Cejas y Pestañas'), 'Brows Henna', 'Henna para cejas', 45, 40.00, TRUE, TRUE),
+((SELECT id FROM public.categories WHERE name = 'Cejas y Pestañas'), 'Brows Lamination + Tint', 'Laminado y tinte de cejas', 60, 40.00, TRUE, TRUE);
 
 -- SERVICIOS DE UÑAS
-INSERT INTO public.services (category, name, description, duration_minutes, price, active, featured) VALUES
-('Uñas', 'Regular Pedicure', 'Pedicure regular', 45, 25.00, TRUE, TRUE),
-('Uñas', 'Regular Manicure', 'Manicure regular', 30, 20.00, TRUE, TRUE),
-('Uñas', 'Set Regular Mani + Pedi', 'Set manicure y pedicure regular', 60, 30.00, TRUE, TRUE),
-('Uñas', 'Gel Manicure', 'Manicure en gel', 45, 35.00, TRUE, TRUE),
-('Uñas', 'Gel Pedicure', 'Pedicure en gel', 45, 30.00, TRUE, FALSE),
-('Uñas', 'Set Gel Mani + Gel Pedi', 'Set manicure y pedicure en gel', 75, 60.00, TRUE, TRUE),
-('Uñas', 'Set Gel Mani + Regular Pedi', 'Set gel manicure y pedicure regular', 60, 40.00, TRUE, FALSE),
-('Uñas', 'Acrylic New Set', 'Set nuevo de uñas acrílicas', 90, 70.00, TRUE, TRUE),
-('Uñas', 'Acrylic Refill', 'Relleno de uñas acrílicas', 60, 60.00, TRUE, FALSE),
-('Uñas', 'Rubber Base Mani', 'Manicure con base rubber', 45, 35.00, TRUE, FALSE),
-('Uñas', 'Rubber Base Mani + Regular Pedi', 'Set rubber base mani y pedicure regular', 60, 45.00, TRUE, FALSE),
-('Uñas', 'Builder Gel Mani', 'Manicure con builder gel', 60, 45.00, TRUE, TRUE),
-('Uñas', 'Set Builder Gel Mani + Regular Pedi', 'Set builder gel mani y pedicure regular', 75, 55.00, TRUE, FALSE),
-('Uñas', 'Luminary Mani', 'Manicure luminary', 60, 60.00, TRUE, TRUE),
-('Uñas', 'Luminary Mani + Regular Pedi', 'Set luminary mani y pedicure regular', 90, 70.00, TRUE, FALSE),
-('Uñas', 'Dip Manicure', 'Manicure dip powder', 60, 55.00, TRUE, TRUE),
-('Uñas', 'Set Dip Mani + Regular Pedi', 'Set dip mani y pedicure regular', 90, 65.00, TRUE, FALSE),
-('Uñas', 'Apres Manicure', 'Manicure apres', 75, 60.00, TRUE, TRUE),
-('Uñas', 'Set Apres Mani + Regular Pedi', 'Set apres mani y pedicure regular', 100, 75.00, TRUE, FALSE),
-('Uñas', 'Poligel Full Set', 'Set completo de poligel', 90, 60.00, TRUE, TRUE),
-('Uñas', 'Poligel Refill', 'Relleno de poligel', 60, 50.00, TRUE, FALSE),
-('Uñas', 'Mini Diva Regular Mani + Pedi', 'Set mani-pedi regular para niñas', 45, 25.00, TRUE, FALSE),
-('Uñas', 'Mini Diva Gel Mani + Pedi', 'Set mani-pedi gel para niñas', 60, 35.00, TRUE, FALSE),
-('Uñas', 'Man Regular Manicure', 'Manicure regular para hombre', 30, 20.00, TRUE, FALSE),
-('Uñas', 'Man Regular Pedicure', 'Pedicure regular para hombre', 45, 30.00, TRUE, FALSE),
-('Uñas', 'Man Set Mani + Pedi', 'Set mani-pedi regular para hombre', 60, 35.00, TRUE, FALSE),
-('Uñas', 'Man Gel Manicure', 'Manicure gel para hombre', 45, 30.00, TRUE, FALSE),
-('Uñas', 'Man Gel Pedicure', 'Pedicure gel para hombre', 45, 30.00, TRUE, FALSE),
-('Uñas', 'Man Set Gel Mani + Regular Pedi', 'Set gel mani y pedicure regular hombre', 75, 40.00, TRUE, FALSE),
-('Uñas', 'Additional Service', 'Servicio adicional', 15, 10.00, TRUE, FALSE),
-('Uñas', 'Nail Take Off', 'Remover uñas', 20, 0.00, TRUE, FALSE),
-('Uñas', 'Nail Art', 'Arte en uñas (por diseño)', 15, 5.00, TRUE, FALSE),
-('Uñas', 'Nail Polish', 'Esmalte de uñas', 15, 15.00, TRUE, FALSE),
-('Uñas', 'Full Set Nail Tips', 'Set completo de tips', 30, 16.00, TRUE, FALSE);
+INSERT INTO public.services (category_id, name, description, duration_minutes, price, active, featured) VALUES
+((SELECT id FROM public.categories WHERE name = 'Uñas'), 'Regular Pedicure', 'Pedicure regular', 45, 25.00, TRUE, TRUE),
+((SELECT id FROM public.categories WHERE name = 'Uñas'), 'Regular Manicure', 'Manicure regular', 30, 20.00, TRUE, TRUE),
+((SELECT id FROM public.categories WHERE name = 'Uñas'), 'Gel Manicure', 'Manicure en gel', 45, 35.00, TRUE, TRUE),
+((SELECT id FROM public.categories WHERE name = 'Uñas'), 'Gel Pedicure', 'Pedicure en gel', 45, 30.00, TRUE, FALSE),
+((SELECT id FROM public.categories WHERE name = 'Uñas'), 'Set Gel Mani + Gel Pedi', 'Set manicure y pedicure en gel', 75, 60.00, TRUE, TRUE),
+((SELECT id FROM public.categories WHERE name = 'Uñas'), 'Acrylic New Set', 'Set nuevo de uñas acrílicas', 90, 70.00, TRUE, TRUE),
+((SELECT id FROM public.categories WHERE name = 'Uñas'), 'Acrylic Refill', 'Relleno de uñas acrílicas', 60, 60.00, TRUE, FALSE),
+((SELECT id FROM public.categories WHERE name = 'Uñas'), 'Builder Gel Mani', 'Manicure con builder gel', 60, 45.00, TRUE, TRUE),
+((SELECT id FROM public.categories WHERE name = 'Uñas'), 'Luminary Mani', 'Manicure luminary', 60, 60.00, TRUE, TRUE),
+((SELECT id FROM public.categories WHERE name = 'Uñas'), 'Dip Manicure', 'Manicure dip powder', 60, 55.00, TRUE, TRUE);
+
+-- TESTIMONIOS
+INSERT INTO public.testimonials (client_name, rating, comment, service, is_featured, visible) VALUES
+('María González', 5, 'Increíble experiencia! El corte y color quedaron perfectos. El equipo es súper profesional y el ambiente es muy acogedor.', 'Cabello', TRUE, TRUE),
+('Sofia Martínez', 5, 'Las extensiones de pestañas son lo mejor! Duran muchísimo y se ven súper naturales. Totalmente recomendado.', 'Cejas y Pestañas', TRUE, TRUE),
+('Ana Rodríguez', 5, 'El manicure gel es impecable, me encanta que dure tanto tiempo sin despegarse. Las chicas son muy atentas y detallistas.', 'Uñas', TRUE, TRUE),
+('Isabella Torres', 5, 'El facial hydrofacial dejó mi piel radiante! Se nota la diferencia desde la primera sesión. Volveré sin duda.', 'Cuidado Facial', TRUE, TRUE),
+('Valentina López', 4, 'Excelente servicio de depilación brasileña. Es rápido, casi sin dolor y el resultado dura semanas. Muy profesional.', 'Depilación', FALSE, TRUE),
+('Camila Hernández', 5, 'Llevo años viniendo y siempre salgo feliz. El balayage que me hicieron es justo lo que quería. Las recomiendo 100%.', 'Cabello', FALSE, TRUE),
+('Lucía Ramírez', 5, 'El pedicure es súper relajante y mis pies quedaron hermosos. El lugar es limpio y muy bonito. Lo amo!', 'Uñas', FALSE, TRUE),
+('Daniela Castro', 5, 'Las cejas con henna quedaron perfectas! Me encantan porque se ven naturales y duran mucho tiempo.', 'Cejas y Pestañas', FALSE, TRUE);
 
 -- CONTENIDO INICIAL DEL SITIO
 INSERT INTO public.site_content (section, content, active) VALUES
@@ -448,34 +479,28 @@ INSERT INTO public.site_content (section, content, active) VALUES
   "schedule": "Lun - Sáb: 9:00 AM - 5:30 PM"
 }', TRUE);
 
--- TESTIMONIOS DE CLIENTES
-INSERT INTO public.testimonials (client_name, rating, comment, service, is_featured, visible) VALUES
-('María González', 5, 'Increíble experiencia! El corte y color quedaron perfectos. El equipo es súper profesional y el ambiente es muy acogedor.', 'Cabello', TRUE, TRUE),
-('Sofia Martínez', 5, 'Las extensiones de pestañas son lo mejor! Duran muchísimo y se ven súper naturales. Totalmente recomendado.', 'Cejas y Pestañas', TRUE, TRUE),
-('Ana Rodríguez', 5, 'El manicure gel es impecable, me encanta que dure tanto tiempo sin despegarse. Las chicas son muy atentas y detallistas.', 'Uñas', TRUE, TRUE),
-('Isabella Torres', 5, 'El facial hydrofacial dejó mi piel radiante! Se nota la diferencia desde la primera sesión. Volveré sin duda.', 'Cuidado Facial', TRUE, TRUE),
-('Valentina López', 4, 'Excelente servicio de depilación brasileña. Es rápido, casi sin dolor y el resultado dura semanas. Muy profesional.', 'Depilación', FALSE, TRUE),
-('Camila Hernández', 5, 'Llevo años viniendo y siempre salgo feliz. El balayage que me hicieron es justo lo que quería. Las recomiendo 100%.', 'Cabello', FALSE, TRUE),
-('Lucía Ramírez', 5, 'El pedicure es súper relajante y mis pies quedaron hermosos. El lugar es limpio y muy bonito. Lo amo!', 'Uñas', FALSE, TRUE),
-('Daniela Castro', 5, 'Las cejas con henna quedaron perfectas! Me encantan porque se ven naturales y duran mucho tiempo.', 'Cejas y Pestañas', FALSE, TRUE);
-
 COMMIT;
 
 -- ===========================
 -- RESUMEN FINAL
 -- ===========================
 
+-- Verificar que todo está configurado correctamente
 SELECT 
     '✅ SETUP COMPLETO' as status,
+    (SELECT COUNT(*) FROM public.categories) as total_categorias,
     (SELECT COUNT(*) FROM public.services) as total_servicios,
-    (SELECT COUNT(*) FROM public.service_categories) as total_categorias,
-    (SELECT COUNT(*) FROM public.testimonials) as total_testimonios;
+    (SELECT COUNT(*) FROM public.testimonials) as total_testimonios,
+    (SELECT COUNT(*) FROM public.staff) as total_estilistas;
 
+-- Resumen por categoría
 SELECT 
-    category,
-    COUNT(*) as servicios,
-    MIN(price) as precio_min,
-    MAX(price) as precio_max
-FROM public.services
-GROUP BY category
-ORDER BY category;
+    c.name as categoria,
+    COUNT(s.id) as servicios,
+    MIN(s.price) as precio_minimo,
+    MAX(s.price) as precio_maximo
+FROM public.categories c
+LEFT JOIN public.services s ON c.id = s.category_id
+WHERE c.active = TRUE
+GROUP BY c.id, c.name, c.display_order
+ORDER BY c.display_order ASC;

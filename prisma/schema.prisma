@@ -6,9 +6,8 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model Admin {
@@ -84,14 +83,15 @@ model PromotionService {
 
 model Staff {
   id           String    @id @default(uuid())
-  name         String
+  name         String    // Nombre completo del estilista
   email        String?
-  phone        String?
-  specialty    String?
+  phone        String?   // Teléfono (solo visible para admin)
+  specialty    String?   // Campo por compatibilidad, usar specialties en API
+  specialties  String    @default("[]") // JSON array: ["Colorista", "Maquilladora", ...]
   bio          String?
   photoUrl     String?
   active       Boolean   @default(true)
-  workSchedule String    @default("{}") // JSON string: { monday: { start: "09:00", end: "19:00", enabled: true }, ... }
+  workSchedule String    @default("{}") // JSON string
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   bookings     Booking[]

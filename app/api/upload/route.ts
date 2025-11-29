@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { uploadImage } from '@/lib/cloudinary';
 import { getSession } from '@/lib/auth';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,7 +20,6 @@ export async function POST(request: NextRequest) {
 
     const formData = await request.formData();
     const file = formData.get('file') as File;
-    const folder = formData.get('folder') as string || 'copper';
 
     if (!file) {
       return NextResponse.json(
@@ -42,14 +46,32 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Subir a Cloudinary
-    const result = await uploadImage(file, folder);
+    // Generar nombre único para el archivo
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substring(7);
+    const fileName = `${timestamp}-${random}-${file.name}`;
+
+    // Subir a Supabase Storage
+    const { data, error } = await supabase.storage
+      .from('portfolio')
+      .upload(`images/${fileName}`, file, {
+        cacheControl: '3600',
+        upsert: false,
+      });
+
+    if (error) {
+      console.error('Error de Supabase:', error);
+      throw new Error('Error al subir imagen a Supabase');
+    }
+
+    // Obtener URL pública
+    const { data: publicData } = supabase.storage
+      .from('portfolio')
+      .getPublicUrl(data.path);
 
     return NextResponse.json({
-      url: result.secure_url,
-      publicId: result.public_id,
-      width: result.width,
-      height: result.height,
+      url: publicData.publicUrl,
+      path: data.path,
     });
   } catch (error) {
     console.error('Error al subir imagen:', error);

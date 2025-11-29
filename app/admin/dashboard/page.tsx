@@ -3,11 +3,10 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import BookingCalendar from "@/components/BookingCalendar";
 import {
   Calendar,
-  DollarSign,
   Users,
-  TrendingUp,
   Clock,
   CheckCircle2,
   XCircle,
@@ -35,12 +34,7 @@ const COLORS = {
 };
 
 export default function AdminDashboardPage() {
-  const [stats, setStats] = useState({
-    todayBookings: 0,
-    weekRevenue: 0,
-    activeClients: 0,
-    monthGrowth: 0,
-  });
+  const [stats, setStats] = useState({});
   const [recentBookings, setRecentBookings] = useState<any[]>([]);
   const [bookingsByStatus, setBookingsByStatus] = useState<any>({});
   const [loading, setLoading] = useState(true);
@@ -130,67 +124,7 @@ export default function AdminDashboardPage() {
         </p>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white border-none">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="bg-white/20 p-3 rounded-lg">
-                <Calendar size={24} />
-              </div>
-            </div>
-            <div>
-              <p className="text-blue-100 text-sm mb-1">Reservas Hoy</p>
-              <p className="text-3xl font-bold">{stats.todayBookings}</p>
-            </div>
-          </CardContent>
-        </Card>
 
-        <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white border-none">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="bg-white/20 p-3 rounded-lg">
-                <DollarSign size={24} />
-              </div>
-            </div>
-            <div>
-              <p className="text-green-100 text-sm mb-1">Ingresos Semana</p>
-              <p className="text-3xl font-bold">${stats.weekRevenue}</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white border-none">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="bg-white/20 p-3 rounded-lg">
-                <Users size={24} />
-              </div>
-            </div>
-            <div>
-              <p className="text-purple-100 text-sm mb-1">Clientes Activos</p>
-              <p className="text-3xl font-bold">{stats.activeClients}</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-orange-500 to-orange-600 text-white border-none">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="bg-white/20 p-3 rounded-lg">
-                <TrendingUp size={24} />
-              </div>
-            </div>
-            <div>
-              <p className="text-orange-100 text-sm mb-1">Crecimiento Mes</p>
-              <p className="text-3xl font-bold">
-                {stats.monthGrowth > 0 ? "+" : ""}
-                {stats.monthGrowth}%
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
 
       {/* Charts */}
       {pieData.length > 0 && (
@@ -251,7 +185,11 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
-      {/* Recent Bookings */}
+      {/* Booking Calendar */}
+      <BookingCalendar initialBookings={recentBookings} />
+
+      {/* Recent Bookings Table - Kept for reference but can be removed */}
+      {false && (
       <Card>
         <CardContent className="p-6">
           <div className="flex items-center justify-between mb-6">
@@ -327,6 +265,7 @@ export default function AdminDashboardPage() {
           )}
         </CardContent>
       </Card>
+      )}
 
       {/* Quick Actions */}
       <div className="grid md:grid-cols-3 gap-6">

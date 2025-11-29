@@ -1,159 +1,82 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { sendBookingConfirmation } from "@/lib/email";
-import { sendBookingSMS } from "@/lib/sms";
 
 export async function POST(request: Request) {
   try {
-    const {
-      clienteNombre,
-      clienteTelefono,
-      clienteEmail,
-      servicios,
-      staffId,
-      fecha,
-      hora,
-      notas,
-    } = await request.json();
+    const bodyData = await request.json();
+    
+    // Extraer datos del request
+    const staffId = bodyData.staffId;
+    const bookingDate = bodyData.date;
+    const startTime = bodyData.startTime;
+    const serviceIds = bodyData.serviceIds || [];
+    const notes = bodyData.notes || "";
+    const status = bodyData.status || "confirmed";
+    const clientName = bodyData.clientName || "";
+    const clientPhone = bodyData.clientPhone || "";
+    const clientEmail = bodyData.clientEmail || "";
 
-    if (!clienteNombre || !clienteTelefono || !servicios || servicios.length === 0 || !staffId || !fecha || !hora) {
+    if (!staffId || !bookingDate || !startTime || serviceIds.length === 0) {
       return NextResponse.json(
         { error: "Faltan campos requeridos" },
         { status: 400 }
       );
     }
 
-    // Verificar disponibilidad del estilista
-    const staff = await db.staff.findUnique({
-      where: { id: staffId },
-    });
-
-    if (!staff || !staff.active) {
-      return NextResponse.json(
-        { error: "Estilista no disponible" },
-        { status: 400 }
-      );
-    }
-
-    // Calcular duración total y precio
-    const servicesData = await db.service.findMany({
+    // Obtener servicios para calcular duración
+    const services = await db.service.findMany({
       where: {
         id: {
-          in: servicios,
-        },
-      },
+          in: serviceIds
+        }
+      }
     });
 
-    const duracionTotal = servicesData.reduce(
-      (sum: number, s: any) => sum + s.duration,
+    if (!services || services.length === 0) {
+      throw new Error("Error al obtener servicios");
+    }
+
+    const duracionTotal = services.reduce(
+      (sum: number, s: any) => sum + (s.duration || 60),
       0
     );
-    const precioTotal = servicesData.reduce((sum: number, s: any) => sum + s.price, 0);
+    const precioTotal = services.reduce((sum: number, s: any) => sum + s.price, 0);
 
-    // Verificar si hay conflictos de horario
-    const fechaHora = new Date(`${fecha}T${hora}`);
-    const fechaFin = new Date(fechaHora.getTime() + duracionTotal * 60000);
+    // Calcular hora de fin
+    const startDateTime = new Date(`${bookingDate}T${startTime}`);
+    const endDateTime = new Date(startDateTime.getTime() + duracionTotal * 60000);
+    const endTime = endDateTime.toTimeString().slice(0, 5);
 
-    const conflictos = await db.booking.findMany({
-      where: {
-        staffId,
-        date: new Date(fecha),
-        status: {
-          in: ["pending", "confirmed"],
-        },
-      },
-    });
-
-    for (const conflicto of conflictos) {
-      const conflictoInicio = new Date(`${conflicto.date.toISOString().split('T')[0]}T${conflicto.startTime}`);
-      
-      // Calcular duración del conflicto
-      const serviciosConflicto = await db.bookingService.findMany({
-        where: { bookingId: conflicto.id },
-        include: { service: true },
-      });
-      
-      const duracionConflicto = serviciosConflicto.reduce(
-        (sum: number, bs: any) => sum + bs.service.duration,
-        0
-      );
-      
-      const conflictoFin = new Date(conflictoInicio.getTime() + duracionConflicto * 60000);
-
-      // Verificar si hay solapamiento
-      if (
-        (fechaHora >= conflictoInicio && fechaHora < conflictoFin) ||
-        (fechaFin > conflictoInicio && fechaFin <= conflictoFin) ||
-        (fechaHora <= conflictoInicio && fechaFin >= conflictoFin)
-      ) {
-        return NextResponse.json(
-          { 
-            error: "El horario seleccionado no está disponible",
-            disponible: false,
-          },
-          { status: 409 }
-        );
-      }
-    }
-
-    // Crear la reserva
+    // Crear reserva
     const booking = await db.booking.create({
       data: {
-        clientName: clienteNombre,
-        clientPhone: clienteTelefono,
-        clientEmail: clienteEmail || "",
-        staffId,
-        date: new Date(fecha),
-        startTime: hora,
-        endTime: new Date(fechaFin).toTimeString().slice(0, 5),
-        status: "pending",
-        notes: notas || "",
+        clientName: clientName,
+        clientPhone: clientPhone,
+        clientEmail: clientEmail,
+        date: new Date(bookingDate),
+        startTime: startTime,
+        endTime: endTime,
+        status: status,
+        notes: notes,
+        staffId: staffId,
         services: {
-          create: servicios.map((serviceId: string) => ({
-            serviceId: serviceId,
-          })),
-        },
+          create: serviceIds.map((serviceId: string) => ({
+            serviceId: serviceId
+          }))
+        }
       },
       include: {
-        staff: true,
         services: {
           include: {
-            service: true,
-          },
-        },
-      },
+            service: true
+          }
+        }
+      }
     });
 
-    // Enviar notificaciones (email y SMS)
-    try {
-      if (clienteEmail) {
-        await sendBookingConfirmation({
-          clienteNombre,
-          clienteEmail,
-          fecha: new Date(fecha).toLocaleDateString('es-MX'),
-          hora,
-          servicios: servicesData.map((s: any) => s.name),
-          estilista: staff.name,
-          total: precioTotal,
-        });
-      }
-
-      await sendBookingSMS({
-        clienteNombre,
-        clienteTelefono,
-        fecha: new Date(fecha).toLocaleDateString('es-MX'),
-        hora,
-        estilista: staff.name,
-      });
-    } catch (notificationError) {
-      // Log error pero no fallar la reserva
-      console.error('Error enviando notificaciones:', notificationError);
-    }
-
     return NextResponse.json(
-      { 
+      {
         booking,
-        disponible: true,
         duracionTotal,
         precioTotal,
       },
@@ -162,7 +85,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("Error creating booking:", error);
     return NextResponse.json(
-      { error: "Error al crear reserva" },
+      { error: "Error al crear reserva", details: String(error) },
       { status: 500 }
     );
   }
@@ -175,41 +98,46 @@ export async function GET(request: Request) {
     const fecha = searchParams.get("fecha");
     const staffId = searchParams.get("staffId");
 
-    const where: any = {};
+    let whereClause: any = {};
 
     if (estado && estado !== "all") {
-      where.status = estado;
+      whereClause.status = estado;
     }
 
     if (fecha) {
-      where.date = new Date(fecha);
+      const startOfDay = new Date(fecha);
+      const endOfDay = new Date(fecha);
+      endOfDay.setDate(endOfDay.getDate() + 1);
+      whereClause.date = {
+        gte: startOfDay,
+        lt: endOfDay
+      };
     }
 
     if (staffId) {
-      where.staffId = staffId;
+      whereClause.staffId = staffId;
     }
 
     const bookings = await db.booking.findMany({
-      where,
+      where: whereClause,
       include: {
         staff: true,
         services: {
           include: {
-            service: true,
-          },
-        },
+            service: true
+          }
+        }
       },
-      orderBy: [
-        { date: "desc" },
-        { startTime: "asc" },
-      ],
+      orderBy: {
+        date: "desc"
+      }
     });
 
-    return NextResponse.json({ bookings });
+    return NextResponse.json({ bookings: bookings || [] });
   } catch (error) {
     console.error("Error fetching bookings:", error);
     return NextResponse.json(
-      { error: "Error al obtener reservas" },
+      { error: "Error al obtener reservas", details: String(error) },
       { status: 500 }
     );
   }
