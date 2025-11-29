@@ -1,84 +1,137 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export async function POST(request: Request) {
   try {
-    const bodyData = await request.json();
-    
-    // Extraer datos del request
-    const staffId = bodyData.staffId;
-    const bookingDate = bodyData.date;
-    const startTime = bodyData.startTime;
-    const serviceIds = bodyData.serviceIds || [];
-    const notes = bodyData.notes || "";
-    const status = bodyData.status || "confirmed";
-    const clientName = bodyData.clientName || "";
-    const clientPhone = bodyData.clientPhone || "";
-    const clientEmail = bodyData.clientEmail || "";
+    const {
+      staffId,
+      date,
+      startTime,
+      endTime,
+      serviceIds,
+      customerName,
+      customerPhone,
+      customerEmail,
+      notes,
+    } = await request.json();
 
-    if (!staffId || !bookingDate || !startTime || serviceIds.length === 0) {
+    if (!staffId || !date || !startTime || !serviceIds || serviceIds.length === 0) {
       return NextResponse.json(
         { error: "Faltan campos requeridos" },
         { status: 400 }
       );
     }
 
-    // Obtener servicios para calcular duración
-    const services = await db.service.findMany({
-      where: {
-        id: {
-          in: serviceIds
-        }
+    // 1. Validar disponibilidad
+    const availabilityResponse = await fetch(
+      `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/availability/validate`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          staffId,
+          date,
+          startTime,
+          endTime,
+        }),
       }
-    });
+    );
 
-    if (!services || services.length === 0) {
-      throw new Error("Error al obtener servicios");
+    const availabilityData = await availabilityResponse.json();
+
+    if (!availabilityData.available) {
+      return NextResponse.json(
+        {
+          error: "Horario no disponible",
+          reason: availabilityData.reason,
+          conflict: availabilityData.conflict,
+        },
+        { status: 409 }
+      );
     }
 
-    const duracionTotal = services.reduce(
-      (sum: number, s: any) => sum + (s.duration || 60),
-      0
-    );
-    const precioTotal = services.reduce((sum: number, s: any) => sum + s.price, 0);
+    // 2. Obtener o crear cliente
+    let customer;
+    if (customerPhone) {
+      const { data: existingCustomer } = await supabase
+        .from("customers")
+        .select("*")
+        .eq("phone", customerPhone)
+        .single();
 
-    // Calcular hora de fin
-    const startDateTime = new Date(`${bookingDate}T${startTime}`);
-    const endDateTime = new Date(startDateTime.getTime() + duracionTotal * 60000);
-    const endTime = endDateTime.toTimeString().slice(0, 5);
+      if (existingCustomer) {
+        customer = existingCustomer;
+      } else {
+        const { data: newCustomer, error: customerError } = await supabase
+          .from("customers")
+          .insert({
+            name: customerName || "Cliente",
+            phone: customerPhone,
+            email: customerEmail || null,
+          })
+          .select()
+          .single();
 
-    // Crear reserva
-    const booking = await db.booking.create({
-      data: {
-        clientName: clientName,
-        clientPhone: clientPhone,
-        clientEmail: clientEmail,
-        date: new Date(bookingDate),
-        startTime: startTime,
-        endTime: endTime,
-        status: status,
-        notes: notes,
-        staffId: staffId,
-        services: {
-          create: serviceIds.map((serviceId: string) => ({
-            serviceId: serviceId
-          }))
-        }
-      },
-      include: {
-        services: {
-          include: {
-            service: true
-          }
-        }
+        if (customerError) throw customerError;
+        customer = newCustomer;
       }
-    });
+    }
+
+    // 3. Crear reserva
+    const { data: booking, error: bookingError } = await supabase
+      .from("bookings")
+      .insert({
+        customer_id: customer?.id || null,
+        booking_date: date,
+        start_time: startTime,
+        end_time: endTime,
+        staff_id: staffId,
+        status: "confirmed",
+        notes: notes || "",
+      })
+      .select()
+      .single();
+
+    if (bookingError) throw bookingError;
+
+    // 4. Agregar servicios a la reserva
+    if (serviceIds.length > 0) {
+      const bookingServices = serviceIds.map((serviceId: string) => ({
+        booking_id: booking.id,
+        service_id: serviceId,
+      }));
+
+      const { error: servicesError } = await supabase
+        .from("booking_services")
+        .insert(bookingServices);
+
+      if (servicesError) throw servicesError;
+    }
+
+    // 5. Obtener datos completos de la reserva
+    const { data: completeBooking } = await supabase
+      .from("bookings")
+      .select(
+        `
+        *,
+        customer:customer_id(*),
+        staff:staff_id(*),
+        services:booking_services(service:service_id(*))
+      `
+      )
+      .eq("id", booking.id)
+      .single();
 
     return NextResponse.json(
       {
-        booking,
-        duracionTotal,
-        precioTotal,
+        booking: completeBooking,
+        message: "Reserva creada exitosamente",
+        staffAuthCode: (completeBooking?.staff as any)?.auth_code,
       },
       { status: 201 }
     );
@@ -94,44 +147,38 @@ export async function POST(request: Request) {
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const estado = searchParams.get("estado");
-    const fecha = searchParams.get("fecha");
     const staffId = searchParams.get("staffId");
+    const date = searchParams.get("date");
+    const status = searchParams.get("status");
 
-    let whereClause: any = {};
-
-    if (estado && estado !== "all") {
-      whereClause.status = estado;
-    }
-
-    if (fecha) {
-      const startOfDay = new Date(fecha);
-      const endOfDay = new Date(fecha);
-      endOfDay.setDate(endOfDay.getDate() + 1);
-      whereClause.date = {
-        gte: startOfDay,
-        lt: endOfDay
-      };
-    }
+    let query = supabase
+      .from("bookings")
+      .select(
+        `
+        *,
+        customer:customer_id(*),
+        staff:staff_id(*),
+        services:booking_services(service:service_id(*))
+      `
+      );
 
     if (staffId) {
-      whereClause.staffId = staffId;
+      query = query.eq("staff_id", staffId);
     }
 
-    const bookings = await db.booking.findMany({
-      where: whereClause,
-      include: {
-        staff: true,
-        services: {
-          include: {
-            service: true
-          }
-        }
-      },
-      orderBy: {
-        date: "desc"
-      }
+    if (status && status !== "all") {
+      query = query.eq("status", status);
+    }
+
+    if (date) {
+      query = query.eq("booking_date", date);
+    }
+
+    const { data: bookings, error } = await query.order("booking_date", {
+      ascending: false,
     });
+
+    if (error) throw error;
 
     return NextResponse.json({ bookings: bookings || [] });
   } catch (error) {
@@ -142,3 +189,4 @@ export async function GET(request: Request) {
     );
   }
 }
+

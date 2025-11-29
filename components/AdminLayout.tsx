@@ -22,6 +22,12 @@ interface AdminLayoutProps {
 export default function AdminLayout({ children }: AdminLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
+
+  // Early return for login page - check this FIRST before any hooks
+  if (pathname === "/admin/login") {
+    return <>{children}</>;
+  }
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -31,11 +37,6 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   useEffect(() => {
     setMounted(true);
   }, []);
-
-  // Early return for login page - check this FIRST before any hooks
-  if (pathname === "/admin/login") {
-    return <>{children}</>;
-  }
 
   const checkAuth = useCallback(async () => {
     if (!mounted) return;

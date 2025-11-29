@@ -3,9 +3,50 @@
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { useState, useEffect } from "react";
-import hero_imagen from "@/assets/hero_imagen.jpg";
-import hero_imagen2 from "@/assets/hero_imagen2.jpg";
-import hero_imagen3 from "@/assets/hero_imagen3.jpg";
+import hero from "@/assets/hero.jpg";
+import vector1 from "@/assets/vector1.png";
+import vector2 from "@/assets/vector2.png";
+import vector3 from "@/assets/vector3.png";
+
+const slideInStyles = `
+  @keyframes slideInLeft {
+    from {
+      opacity: 1.2;
+      transform: translateX(-100px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+  
+  .slide-in-text {
+    animation: slideInLeft 1s ease-out forwards;
+  }
+
+  @keyframes fadeInVector {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 2;
+    }
+  }
+
+  @keyframes fadeOutVector {
+    from {
+      opacity: 2;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+
+  .vector-zoom-in {
+    animation: fadeInVector 600ms ease-out forwards, fadeOutVector 900ms ease-in 192000ms forwards;
+    will-change: opacity;
+  }
+`;
 
 interface Promotion {
   id: string;
@@ -16,8 +57,8 @@ interface Promotion {
 }
 
 interface HeroSlide {
-  image: string;
-  h2: string;
+  vector: string;
+  h2?: string;
   h3: string;
   h4?: string;
   showButton?: boolean;
@@ -25,24 +66,23 @@ interface HeroSlide {
 
 export default function HeroSection() {
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [fade, setFade] = useState(true);
   const [mounted, setMounted] = useState(false);
 
   const slides: HeroSlide[] = [
     {
-      image: hero_imagen.src,
-      h2: "Resalta tu belleza natural con un toque suave",
-      h3: "Después de un día largo y agotador. Aquí puedes consentirte, renovar tu energía y disfrutar de los beneficios de un cuidado de belleza profesional y accesible.",
+      vector: vector1.src,
+      h3: "Resalta tu belleza natural con un toque suave",
+      h4: "Después de un día largo y agotador. Aquí puedes consentirte, renovar tu energía y disfrutar de los beneficios de un cuidado de belleza profesional y accesible.",
       showButton: true,
     },
     {
-      image: hero_imagen2.src,
-      h2: "Vive la Experiencia",
-      h3: "Te escuchamos, diseñamos tu look y trabajamos con productos top para que salgas con un glow impecable. Confía tu imagen a un equipo que realmente cuida cada detalle de tu estilo.",
+      vector: vector2.src,
+      h3: "Vive la Experiencia",
+      h4: "Te escuchamos, diseñamos tu look y trabajamos con productos top para que salgas con un glow impecable. Confía tu imagen a un equipo que realmente cuida cada detalle de tu estilo.",
       showButton: true,
     },
     {
-      image: hero_imagen3.src,
+      vector: vector3.src,
       h2: "Copper",
       h3: "En Copper ofrecemos servicios de calidad para ti. Nos especializamos en todos los tratamientos de belleza, y contamos con un equipo completamente profesional, creativo e innovador: desde maquillaje, cuidado del cabello, hasta cejas, pestañas y más.",
       h4: "Tu belleza es nuestro regalo para ti: déjate consentir por expertos que aman lo que hacen.",
@@ -59,15 +99,11 @@ export default function HeroSection() {
     if (!mounted) return;
 
     const interval = setInterval(() => {
-      setFade(false);
-      setTimeout(() => {
-        setCurrentSlide((prev) => (prev + 1) % slides.length);
-        setFade(true);
-      }, 800);
-    }, 6000);
+      setCurrentSlide((prev) => (prev + 1) % slides.length);
+    }, 20000); // 20 seconds per slide display
 
     return () => clearInterval(interval);
-  }, [mounted]);
+  }, [mounted, slides.length]);
 
   const slide = slides[currentSlide];
 
@@ -76,31 +112,43 @@ export default function HeroSection() {
     return (
       <section
         suppressHydrationWarning
-        className="relative overflow-hidden min-h-screen flex items-center transition-all duration-800"
+        className="relative overflow-hidden min-h-screen flex items-center"
         style={{
-          backgroundImage: `url(${slides[0].image})`,
+          backgroundImage: `url(${hero.src})`,
           backgroundSize: "cover",
           backgroundPosition: "center",
         }}
       >
-        <div className="absolute inset-0 bg-black/20 transition-opacity duration-500"></div>
-        <div className="absolute -left-24 top-[-140px] w-[22rem] h-[22rem] sm:w-[26rem] sm:h-[26rem] bg-white/10 rounded-full blur-3xl max-sm:opacity-60"></div>
-        <div className="absolute bottom-[-240px] right-[-180px] w-[28rem] h-[28rem] sm:w-[36rem] sm:h-[36rem] bg-white/10 rounded-full blur-3xl max-sm:opacity-60"></div>
-        <div className="container mx-auto px-4 pt-24 pb-16 md:pt-36 md:pb-28 lg:pt-40 relative z-10">
+        <style>{slideInStyles}</style>
+        
+        {/* Vector overlay con zoom */}
+        <div
+          className="absolute inset-0 vector-zoom-in"
+          style={{
+            backgroundImage: `url(${slides[0].vector})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        />
+        
+        <div className="container mx-auto px-4 pt-16 pb-12 md:pt-24 md:pb-16 lg:pt-32 relative z-10">
           <div className="w-full max-w-4xl">
-            <div className="space-y-6 sm:space-y-8">
-              <div className="space-y-4">
-                <h2 className="font-serif text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-black leading-[1.08] max-w-3xl">
-                  {slides[0].h2}
-                </h2>
-                <h3 className="text-base sm:text-lg md:text-xl text-black font-normal leading-relaxed max-w-2xl">
+            <div className="space-y-4 sm:space-y-5 slide-in-text">
+              <div className="space-y-3">
+                <h3 className="font-serif text-2xl sm:text-2xl md:text-5xl lg:text-4xl font-normal text-black leading-[1.08] max-w-2xl">
                   {slides[0].h3}
+                  <div className="h-1.5 w-16 bg-gradient-to-r from-[#d63d7a] to-transparent mt-3 rounded-full"></div>
                 </h3>
               </div>
+              <div className="space-y-2 max-w-2xl">
+                <h4 className="text-sm sm:text-base md:text-lg text-black font-normal leading-relaxed">
+                  {slides[0].h4}
+                </h4>
+              </div>
               {slides[0].showButton && (
-                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full pt-4">
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full pt-1">
                   <Link href="/reservar">
-                    <Button className="text-base sm:text-lg md:text-xl px-6 py-4 sm:px-8 sm:py-5 md:px-10 md:py-6 lg:px-12 lg:py-7 rounded-full bg-white text-[#2c1e21] hover:bg-[#d63d7a] hover:text-white shadow-md hover:shadow-lg transition-all font-montserrat font-semibold">
+                    <Button className="text-sm sm:text-base md:text-lg px-5 py-3 sm:px-6 sm:py-4 md:px-8 md:py-5 lg:px-10 lg:py-6 rounded-full bg-white text-[#2c1e21] hover:bg-[#d63d7a] hover:text-white transition-all font-montserrat font-semibold">
                       Reserva tu cita
                     </Button>
                   </Link>
@@ -116,43 +164,81 @@ export default function HeroSection() {
   return (
     <section
       suppressHydrationWarning
-      className="relative overflow-hidden min-h-screen flex items-center transition-all duration-800"
+      className="relative overflow-hidden min-h-screen flex items-center"
       style={{
-        backgroundImage: `url(${slide.image})`,
+        backgroundImage: `url(${hero.src})`,
         backgroundSize: "cover",
         backgroundPosition: "center",
       }}
     >
-      {/* Overlay opcional para mejorar legibilidad del texto */}
-      <div className="absolute inset-0 bg-black/20 transition-opacity duration-800"></div>
-
-      {/* Decorative blurs */}
-      <div className="absolute -left-24 top-[-140px] w-[22rem] h-[22rem] sm:w-[26rem] sm:h-[26rem] bg-white/10 rounded-full blur-3xl max-sm:opacity-60"></div>
-      <div className="absolute bottom-[-240px] right-[-180px] w-[28rem] h-[28rem] sm:w-[36rem] sm:h-[36rem] bg-white/10 rounded-full blur-3xl max-sm:opacity-60"></div>
-
+      <style>{slideInStyles}</style>
+      
+      {/* Vector overlay con fade prolongado en entrada y rápido en salida */}
+      <div
+        key={`vector-${currentSlide}`}
+        className="absolute inset-0 vector-zoom-in"
+        style={{
+          backgroundImage: `url(${slide.vector})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}
+      />
+      
       {/* Content container */}
-      <div className="container mx-auto px-4 pt-24 pb-16 md:pt-36 md:pb-28 lg:pt-40 relative z-10">
+      <div className="container mx-auto px-4 pt-16 pb-12 md:pt-24 md:pb-16 lg:pt-32 relative z-10">
         <div className="w-full max-w-4xl">
-          {/* Text content left-aligned with fade transition */}
+          {/* Text content with slide-in animation */}
           <div
-            className={`space-y-6 sm:space-y-8 transition-all duration-800 ease-in-out ${
-              fade ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
-            }`}
+            key={`text-${currentSlide}`}
+            className="space-y-4 sm:space-y-5 slide-in-text"
           >
-            {/* Main heading - h2 with Times font, black color */}
-            <div className="space-y-4">
-              <h2 className="font-serif text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-black leading-[1.08] max-w-3xl">
-                {slide.h2}
-              </h2>
+            {/* Main heading with divider - inspired by Swiper style */}
+            <div className="space-y-3">
+              {slide.h2 ? (
+                <div className="space-y-1">
+                  <h2 className="font-times text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-[#d63d7a] leading-[1.08] max-w-3xl">
+                    Copper
+                  </h2>
+                  <div className="flex items-baseline gap-1 max-w-3xl">
+                    <h2 className="font-times text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-black leading-[1.08]">
+                      Beauty Salon
+                    </h2>
+                    <h2 className="font-playfair text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-black leading-[1.08]">
+                      &
+                    </h2>
+                    <h2 className="font-times text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-black leading-[1.08]">
+                      Spa
+                    </h2>
+                  </div>
+                  {currentSlide === 2 && (
+                    <div className="h-1.5 w-16 bg-gradient-to-r from-[#d63d7a] to-transparent mt-3 rounded-full"></div>
+                  )}
+                </div>
+              ) : (
+                <h3 className="font-serif text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-black leading-[1.08] max-w-3xl">
+                  {slide.h3}
+                  {currentSlide < 2 && (
+                    <div className="h-1.5 w-16 bg-gradient-to-r from-[#d63d7a] to-transparent mt-3 rounded-full"></div>
+                  )}
+                </h3>
+              )}
+            </div>
 
-              {/* Sub heading - h3 with normal format, black color */}
-              <h3 className="text-base sm:text-lg md:text-xl text-black font-normal leading-relaxed max-w-2xl">
-                {slide.h3}
-              </h3>
+            {/* Sub heading with full content */}
+            <div className="space-y-2 max-w-2xl">
+              {slide.h2 ? (
+                <h3 className="text-sm sm:text-base md:text-lg text-black font-normal leading-relaxed">
+                  {slide.h3}
+                </h3>
+              ) : (
+                <h4 className="text-sm sm:text-base md:text-lg text-black font-normal leading-relaxed">
+                  {slide.h4}
+                </h4>
+              )}
 
               {/* Optional h4 for third slide */}
-              {slide.h4 && (
-                <h4 className="text-sm sm:text-base md:text-lg text-black font-normal leading-relaxed max-w-2xl italic">
+              {slide.h2 && slide.h4 && (
+                <h4 className="text-xs sm:text-sm md:text-base text-black/80 font-normal leading-relaxed italic">
                   {slide.h4}
                 </h4>
               )}
@@ -160,9 +246,9 @@ export default function HeroSection() {
 
             {/* Reserve button */}
             {slide.showButton && (
-              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full pt-4">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full pt-1">
                 <Link href="/reservar">
-                  <Button className="text-base sm:text-lg md:text-xl px-6 py-4 sm:px-8 sm:py-5 md:px-10 md:py-6 lg:px-12 lg:py-7 rounded-full bg-white text-[#2c1e21] hover:bg-[#d63d7a] hover:text-white shadow-md hover:shadow-lg transition-all font-montserrat font-semibold">
+                  <Button className="text-sm sm:text-base md:text-lg px-5 py-3 sm:px-6 sm:py-4 md:px-8 md:py-5 lg:px-10 lg:py-6 rounded-full bg-white text-[#2c1e21] hover:bg-[#d63d7a] hover:text-white transition-all font-montserrat font-semibold">
                     Reserva tu cita
                   </Button>
                 </Link>
@@ -173,16 +259,12 @@ export default function HeroSection() {
       </div>
 
       {/* Slide indicators - dots */}
-      <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-20 flex gap-2">
+      <div className="absolute bottom-12 left-1/2 transform -translate-x-1/2 z-20 flex gap-2">
         {slides.map((_, index) => (
           <button
             key={index}
             onClick={() => {
-              setFade(false);
-              setTimeout(() => {
-                setCurrentSlide(index);
-                setFade(true);
-              }, 300);
+              setCurrentSlide(index);
             }}
             className={`w-3 h-3 rounded-full transition-all duration-300 ${
               index === currentSlide
@@ -193,6 +275,49 @@ export default function HeroSection() {
           />
         ))}
       </div>
+
+      {/* Slide counter */}
+      <div className="absolute bottom-8 left-8 z-20 text-white font-montserrat text-sm font-semibold">
+        <span className="text-lg">{currentSlide + 1}</span>
+        <span className="text-white/60"> \ {slides.length}</span>
+      </div>
+
+      {/* Navigation buttons */}
+      {/* Previous button */}
+      <button
+        onClick={() => {
+          setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
+        }}
+        className="absolute bottom-8 right-24 z-20 flex items-center justify-center w-10 h-10 rounded-full border border-white/50 hover:border-white transition-all hover:bg-white/10 group"
+        aria-label="Previous slide"
+      >
+        <svg
+          className="w-5 h-5 text-white transform rotate-180 group-hover:translate-x-1 transition-transform"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <polyline points="15 18 9 12 15 6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+
+      {/* Next button */}
+      <button
+        onClick={() => {
+          setCurrentSlide((prev) => (prev + 1) % slides.length);
+        }}
+        className="absolute bottom-8 right-8 z-20 flex items-center justify-center w-10 h-10 rounded-full border border-white/50 hover:border-white transition-all hover:bg-white/10 group"
+        aria-label="Next slide"
+      >
+        <svg
+          className="w-5 h-5 text-white group-hover:-translate-x-1 transition-transform"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <polyline points="9 18 15 12 9 6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
     </section>
   );
 }

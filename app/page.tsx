@@ -1,6 +1,6 @@
 import Header from "@/components/Header";
 import HeroSection from "@/components/HeroSection";
-import AboutSection from "@/components/AboutSection";
+import WhyChooseUsSection from "@/components/WhyChooseUsSection";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -11,67 +11,66 @@ import cejas from "@/assets/cejas.jpg";
 import Depilacion from "@/assets/Depilacion.jpg";
 import Faciales from "@/assets/Faciales.jpg";
 import nails from "@/assets/nails.jpg";
+import fondoCopper from "@/assets/fondo_copper.jpg";
 
 export default function HomePage() {
   return (
     <main className="min-h-screen">
       <Header />
       <HeroSection />
-      <AboutSection />
+      <WhyChooseUsSection />
       
       {/* Services Preview Section */}
       <section
-        className="py-20 sm:py-22 lg:py-28 bg-gradient-to-b from-white via-[#fff7fb] to-white relative overflow-hidden"
+        className="py-12 sm:py-14 lg:py-16 bg-cover bg-center relative overflow-hidden"
+        style={{
+          backgroundImage: `linear-gradient(135deg, rgba(252, 237, 244, 0.88), rgba(255, 245, 251, 0.92)), url(${fondoCopper.src})`,
+        }}
         id="servicios-preview"
       >
-        <div className="absolute top-[-120px] right-[-80px] w-80 h-80 sm:w-96 sm:h-96 bg-[#ffe6f2] rounded-full blur-3xl"></div>
-        <div className="absolute bottom-[-160px] left-[-100px] w-[22rem] h-[22rem] sm:w-[28rem] sm:h-[28rem] bg-[#ffeaf5] rounded-full blur-3xl"></div>
         <div className="container mx-auto px-4 relative z-10">
-          <div className="text-center mb-12 sm:mb-14">
-            <h2 className="font-playfair text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-[#2c1e21] leading-tight mb-4 sm:mb-6">
+          <div className="text-center mb-8 sm:mb-10">
+            <h2 className="font-playfair text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-[#2c1e21] leading-tight mb-3 sm:mb-4">
               Explora nuestros servicios
             </h2>
-            <p className="text-gray-600 max-w-3xl mx-auto font-montserrat text-sm sm:text-base md:text-lg lg:text-xl">
+            <p className="text-gray-600 max-w-3xl mx-auto font-montserrat text-xs sm:text-sm md:text-base lg:text-lg">
               Un espacio para consentirte con cuidado de uñas, faciales, piel y más. Inspirado en los detalles elegantes de nuestro catálogo.
             </p>
           </div>
 
           {/* Nail highlight */}
-          <div className="grid lg:grid-cols-2 gap-8 lg:gap-10 items-center max-w-6xl mx-auto">
-            <div className="space-y-4 hidden md:block">
-              <span className="text-xs sm:text-sm uppercase tracking-[0.2em] text-[#b88a3b] font-montserrat font-semibold">Nail care</span>
-              <h3 className="font-playfair text-3xl sm:text-4xl lg:text-5xl text-[#2c1e21] font-bold">Nail Care</h3>
-              <p className="text-gray-700 font-montserrat leading-relaxed text-sm sm:text-base md:text-lg">
+          <div className="grid lg:grid-cols-2 gap-6 lg:gap-8 items-center max-w-5xl mx-auto">
+            <div className="space-y-3 hidden md:block">
+              <span className="text-xs uppercase tracking-[0.2em] text-[#b88a3b] font-montserrat font-semibold">Nail care</span>
+              <h3 className="font-playfair text-2xl sm:text-3xl lg:text-4xl text-[#2c1e21] font-bold">Nail Care</h3>
+              <p className="text-gray-700 font-montserrat leading-relaxed text-xs sm:text-sm md:text-base">
                 Relájate con manicure y pedicure spa, elige tu estilo en acrílico, gel o dips y luce nail art impecable con acabados duraderos. Nuestro equipo cuida cada detalle para que tus manos y pies se vean elegantes.
               </p>
-          <ul className="space-y-2.5 sm:space-y-3 text-gray-800 font-montserrat text-sm sm:text-base md:text-lg">
+          <ul className="space-y-2 text-gray-800 font-montserrat text-xs sm:text-sm md:text-base">
                 {[
                   "Manicure & Pedicure",
                   "Acrylic & Gel Nails",
                   "Apres & Nail Art",
                 ].map((item) => (
                   <li key={item} className="flex items-start gap-2">
-                    <span className="mt-2 h-2 w-2 rounded-full bg-[#b88a3b]"></span>
+                    <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-[#b88a3b] flex-shrink-0"></span>
                     <span>{item}</span>
                   </li>
                 ))}
               </ul>
             </div>
-            <div className="relative rounded-[26px] overflow-hidden shadow-elegant aspect-[4/5] max-h-[520px] w-full max-w-md mx-auto lg:max-w-none">
-              <NextImage
+            <div className="relative rounded-2xl overflow-hidden shadow-elegant aspect-[4/5] max-h-[380px] w-full max-w-sm mx-auto lg:max-w-none">
+              <img
                 src={nails.src}
                 alt="Nail care Copper"
-                fill
-                sizes="(min-width: 1024px) 520px, 90vw"
-                className="object-cover"
-                priority
+                className="w-full h-full object-cover"
               />
             </div>
           </div>
 
           {/* Other services collage */}
-          <div className="grid lg:grid-cols-[1.1fr,0.9fr] gap-8 lg:gap-10 mt-12 sm:mt-14 items-start max-w-6xl mx-auto">
-            <div className="grid sm:grid-cols-2 gap-3 sm:gap-4">
+          <div className="grid lg:grid-cols-[1.1fr,0.9fr] gap-6 lg:gap-8 mt-8 sm:mt-10 items-start max-w-5xl mx-auto">
+            <div className="grid sm:grid-cols-2 gap-2 sm:gap-3">
               {[
                 makeup.src,
                 cejas.src,
@@ -80,39 +79,36 @@ export default function HomePage() {
               ].map((image, idx) => (
                 <div
                   key={image}
-                  className={`relative overflow-hidden rounded-2xl shadow-soft ${idx === 0 ? "aspect-[4/3]" : "aspect-[4/3]"}`}
+                  className={`relative overflow-hidden rounded-xl shadow-soft ${idx === 0 ? "aspect-[4/3]" : "aspect-[4/3]"}`}
                 >
-                  <NextImage
+                  <img
                     src={image}
                     alt={`Servicio ${idx + 1}`}
-                    fill
-                    sizes="(min-width: 1024px) 260px, 50vw"
-                    className="object-cover"
-                    priority={idx === 0}
+                    className="w-full h-full object-cover"
                   />
                 </div>
               ))}
             </div>
-            <div className="space-y-3 sm:space-y-4">
-              <h3 className="font-playfair text-xl sm:text-2xl lg:text-3xl text-[#2c1e21] font-bold">Otros servicios</h3>
-              <p className="text-gray-700 font-montserrat leading-relaxed text-sm sm:text-base md:text-lg">
-                Combina tus citas de uñas con faciales, tratamientos de piel .Personalizamos cada sesión para que te sientas cuidada de pies a cabeza.
+            <div className="space-y-2 sm:space-y-3">
+              <h3 className="font-playfair text-lg sm:text-xl lg:text-2xl text-[#2c1e21] font-bold">Otros servicios</h3>
+              <p className="text-gray-700 font-montserrat leading-relaxed text-xs sm:text-sm md:text-base">
+                Combina tus citas de uñas con faciales, tratamientos de piel. Personalizamos cada sesión para que te sientas cuidada de pies a cabeza.
               </p>
-              <ul className="space-y-2.5 sm:space-y-3 text-gray-800 font-montserrat text-sm sm:text-base md:text-lg">
+              <ul className="space-y-1.5 text-gray-800 font-montserrat text-xs sm:text-sm md:text-base">
                 {[
                   "Waxing services",
                   "Facial treatments",
                   "Hair treatments",
                 ].map((item) => (
                   <li key={item} className="flex items-start gap-2">
-                    <span className="mt-2 h-2 w-2 rounded-full bg-[#b88a3b]"></span>
+                    <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-[#b88a3b] flex-shrink-0"></span>
                     <span>{item}</span>
                   </li>
                 ))}
               </ul>
               <Button
                 asChild
-                className="rounded-full bg-black text-white hover:bg-[#d63d7a] hover:text-white px-7 py-3 sm:px-8 sm:py-3 md:px-9 md:py-4 lg:px-12 lg:py-5 text-sm sm:text-base md:text-lg lg:text-xl font-semibold w-fit"
+                className="rounded-full bg-black text-white hover:bg-[#d63d7a] hover:text-white px-5 py-2 sm:px-6 sm:py-2.5 md:px-7 md:py-3 lg:px-9 lg:py-3.5 text-xs sm:text-sm md:text-base font-semibold w-fit"
               >
                 <Link href="/servicios">Explorar más</Link>
               </Button>

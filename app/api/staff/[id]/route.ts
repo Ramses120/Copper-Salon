@@ -51,6 +51,7 @@ export async function PUT(
       telefono: staff.phone,
       especialidades: especialidades,
       activo: staff.active,
+      auth_code: staff.auth_code,
     };
 
     return NextResponse.json({ staff: transformedStaff });

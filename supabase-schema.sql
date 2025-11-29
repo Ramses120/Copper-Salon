@@ -1,10 +1,42 @@
 -- ==========================================
 -- COPPER BEAUTY SALON - SETUP COMPLETO
--- Crea todas las tablas + Inserta servicios y precios
 -- Noviembre 2025
 -- ==========================================
+-- 
+-- ⚠️ IMPORTANTE: Este archivo está DEPRECADO
+-- Usar la carpeta /supabase/sql/ con los scripts organizados
+--
+-- Los scripts están divididos en:
+-- 1. 01_create_tables.sql - Crear tablas
+-- 2. 02_create_indexes.sql - Crear índices
+-- 3. 03_triggers.sql - Triggers y funciones
+-- 4. 04_row_level_security.sql - RLS
+-- 5. 05_storage_buckets.sql - Storage
+-- 6. 06_insert_admin.sql - Admin
+-- 7. 07_insert_categories_services.sql - Servicios
+-- 8. 08_insert_customers.sql - Clientes
+-- 9. 09_insert_testimonials.sql - Testimonios
+-- 10. 10_insert_staff_schedules.sql - Estilistas y horarios (CORREGIDO)
+-- 11. 11_insert_site_content.sql - Contenido
+-- 12. 12_validate_setup.sql - Validación
+--
+-- Lee supabase/sql/README.md para instrucciones detalladas
+--
+-- ==========================================
 
+-- Si prefieres ejecutar TODO de una vez, descomenta lo siguiente:
+-- Pero se recomienda ejecutar cada archivo por separado
+
+/*
 BEGIN;
+
+-- Incluir todos los scripts (requiere que Supabase soporte eso)
+-- En su lugar, copia el contenido de cada archivo en orden
+
+COMMIT;
+*/
+
+-- ✅ Para más info: Ver archivo supabase/sql/README.md
 
 -- ===========================
 -- 0. LIMPIAR TABLAS EXISTENTES (Si hay conflicto de versiones)
@@ -453,6 +485,76 @@ INSERT INTO public.testimonials (client_name, rating, comment, service, is_featu
 ('Camila Hernández', 5, 'Llevo años viniendo y siempre salgo feliz. El balayage que me hicieron es justo lo que quería. Las recomiendo 100%.', 'Cabello', FALSE, TRUE),
 ('Lucía Ramírez', 5, 'El pedicure es súper relajante y mis pies quedaron hermosos. El lugar es limpio y muy bonito. Lo amo!', 'Uñas', FALSE, TRUE),
 ('Daniela Castro', 5, 'Las cejas con henna quedaron perfectas! Me encantan porque se ven naturales y duran mucho tiempo.', 'Cejas y Pestañas', FALSE, TRUE);
+
+-- ESTILISTAS (STAFF) CON DATOS DE EJEMPLO
+INSERT INTO public.staff (name, phone, specialty, email, active) VALUES
+('María García', '(786) 555-0101', 'Colorista & Estilista', 'maria@copper.com', TRUE),
+('Sofia Rodríguez', '(786) 555-0102', 'Maquilladora Profesional', 'sofia@copper.com', TRUE),
+('Ana Martínez', '(786) 555-0103', 'Especialista en Uñas', 'ana@copper.com', TRUE),
+('Isabella López', '(786) 555-0104', 'Esteticista', 'isabella@copper.com', TRUE),
+('Valentina Torres', '(786) 555-0105', 'Técnico en Extensiones', 'valentina@copper.com', TRUE),
+('Camila Hernández', '(786) 555-0106', 'Estilista General', 'camila@copper.com', TRUE);
+
+-- HORARIOS DE TRABAJO (staff_schedules)
+-- María García - Lunes a Sábado 9:00 AM - 5:30 PM
+INSERT INTO public.staff_schedules (team_member_id, weekday, start_time, end_time, is_active) 
+SELECT id, weekday, start_time, end_time, TRUE 
+FROM (
+  SELECT (SELECT id FROM public.staff WHERE name = 'María García') as team_member_id, 
+         UNNEST(ARRAY[1, 2, 3, 4, 5, 6]) as weekday,
+         '09:00'::time as start_time,
+         '17:30'::time as end_time
+) AS days;
+
+-- Sofia Rodríguez - Lunes a Sábado 10:00 AM - 6:00 PM
+INSERT INTO public.staff_schedules (team_member_id, weekday, start_time, end_time, is_active)
+SELECT id, weekday, start_time, end_time, TRUE
+FROM (
+  SELECT (SELECT id FROM public.staff WHERE name = 'Sofia Rodríguez') as team_member_id,
+         UNNEST(ARRAY[1, 2, 3, 4, 5, 6]) as weekday,
+         '10:00'::time as start_time,
+         '18:00'::time as end_time
+) AS days;
+
+-- Ana Martínez - Martes a Sábado 9:00 AM - 5:30 PM (Lunes OFF)
+INSERT INTO public.staff_schedules (team_member_id, weekday, start_time, end_time, is_active)
+SELECT id, weekday, start_time, end_time, TRUE
+FROM (
+  SELECT (SELECT id FROM public.staff WHERE name = 'Ana Martínez') as team_member_id,
+         UNNEST(ARRAY[2, 3, 4, 5, 6]) as weekday,
+         '09:00'::time as start_time,
+         '17:30'::time as end_time
+) AS days;
+
+-- Isabella López - Lunes a Viernes 9:00 AM - 5:30 PM (Sábado OFF)
+INSERT INTO public.staff_schedules (team_member_id, weekday, start_time, end_time, is_active)
+SELECT id, weekday, start_time, end_time, TRUE
+FROM (
+  SELECT (SELECT id FROM public.staff WHERE name = 'Isabella López') as team_member_id,
+         UNNEST(ARRAY[1, 2, 3, 4, 5]) as weekday,
+         '09:00'::time as start_time,
+         '17:30'::time as end_time
+) AS days;
+
+-- Valentina Torres - Lunes a Sábado 9:00 AM - 5:30 PM
+INSERT INTO public.staff_schedules (team_member_id, weekday, start_time, end_time, is_active)
+SELECT id, weekday, start_time, end_time, TRUE
+FROM (
+  SELECT (SELECT id FROM public.staff WHERE name = 'Valentina Torres') as team_member_id,
+         UNNEST(ARRAY[1, 2, 3, 4, 5, 6]) as weekday,
+         '09:00'::time as start_time,
+         '17:30'::time as end_time
+) AS days;
+
+-- Camila Hernández - Lunes a Sábado 9:00 AM - 5:30 PM
+INSERT INTO public.staff_schedules (team_member_id, weekday, start_time, end_time, is_active)
+SELECT id, weekday, start_time, end_time, TRUE
+FROM (
+  SELECT (SELECT id FROM public.staff WHERE name = 'Camila Hernández') as team_member_id,
+         UNNEST(ARRAY[1, 2, 3, 4, 5, 6]) as weekday,
+         '09:00'::time as start_time,
+         '17:30'::time as end_time
+) AS days;
 
 -- CONTENIDO INICIAL DEL SITIO
 INSERT INTO public.site_content (section, content, active) VALUES
