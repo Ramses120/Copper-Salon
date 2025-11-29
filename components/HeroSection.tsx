@@ -67,7 +67,7 @@ export default function HeroSection() {
     }, 6000);
 
     return () => clearInterval(interval);
-  }, [slides.length, mounted]);
+  }, [mounted]);
 
   const slide = slides[currentSlide];
 

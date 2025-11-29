@@ -222,6 +222,12 @@ export default function ServiciosPage() {
   const [categories, setCategories] = useState<typeof servicesData>(servicesData);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [mounted, setMounted] = useState(false);
+
+  // Mark as mounted on client side
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const toggleService = (serviceId: string) => {
     setSelectedServices((prev) =>
@@ -248,7 +254,7 @@ export default function ServiciosPage() {
   const { total, duration } = calculateTotal();
 
   const handleReserve = () => {
-    if (!selectedServices.length) return;
+    if (!selectedServices.length || !mounted) return;
     const query = new URLSearchParams({
       services: selectedServices.join(","),
       step: "2",
@@ -257,6 +263,8 @@ export default function ServiciosPage() {
   };
 
   useEffect(() => {
+    if (!mounted) return;
+    
     const loadServices = async () => {
       setLoading(true);
       setError("");
@@ -350,7 +358,7 @@ export default function ServiciosPage() {
     };
 
     loadServices();
-  }, []);
+  }, [mounted]);
 
   const selectedDetails = useMemo(() => {
     const list: { id: string; name: string; price: number; duration: number }[] = [];

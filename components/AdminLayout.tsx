@@ -22,17 +22,24 @@ interface AdminLayoutProps {
 export default function AdminLayout({ children }: AdminLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
-  
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
+
+  // Mark as mounted on client side
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   // Early return for login page - check this FIRST before any hooks
   if (pathname === "/admin/login") {
     return <>{children}</>;
   }
 
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-
   const checkAuth = useCallback(async () => {
+    if (!mounted) return;
+    
     try {
       const response = await fetch("/api/auth/session");
       const data = await response.json();
@@ -47,11 +54,12 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     } finally {
       setLoading(false);
     }
-  }, [pathname, router]);
+  }, [pathname, router, mounted]);
 
   useEffect(() => {
+    if (!mounted) return;
     checkAuth();
-  }, [checkAuth]);
+  }, [mounted, checkAuth]);
 
   const handleLogout = async () => {
     try {
@@ -64,7 +72,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   };
 
   // Show loading state while checking auth
-  if (loading) {
+  if (!mounted || loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
