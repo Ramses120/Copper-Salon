@@ -1,25 +1,40 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { createClient } from "@supabase/supabase-js";
+import { cookies } from "next/headers";
+
+// Helper para crear cliente autenticado
+async function getAuthenticatedSupabase() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("sb-access-token")?.value;
+
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    token
+      ? { global: { headers: { Authorization: `Bearer ${token}` } } }
+      : {}
+  );
+}
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const category = searchParams.get("category");
+    const categoryId = searchParams.get("categoryId");
 
-    const where = category && category !== "all" 
-      ? { category: { name: category } }
-      : {};
+    const supabase = await getAuthenticatedSupabase();
+    
+    let query = supabase
+      .from('services')
+      .select('*, category:categories(*)')
+      .order('name', { ascending: true });
 
-    const services = await db.service.findMany({
-      where,
-      include: {
-        category: true,
-      },
-      orderBy: {
-        name: "asc",
-      },
-    });
+    if (categoryId && categoryId !== "all") {
+      query = query.eq('category_id', categoryId);
+    }
+
+    const { data: services, error } = await query;
+
+    if (error) throw error;
 
     return NextResponse.json({ services });
   } catch (error) {
@@ -33,11 +48,8 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const session = await getSession();
-    if (!session) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    }
-
+    const supabase = await getAuthenticatedSupabase();
+    
     const { nombre, descripcion, precio, duracion, categoriaId } =
       await request.json();
 
@@ -48,19 +60,20 @@ export async function POST(request: Request) {
       );
     }
 
-    const service = await db.service.create({
-      data: {
+    const { data: service, error } = await supabase
+      .from('services')
+      .insert({
         name: nombre,
         description: descripcion || "",
         price: parseFloat(precio),
-        duration: parseInt(duracion),
-        categoryId: categoriaId,
+        duration_minutes: parseInt(duracion),
+        category_id: categoriaId,
         active: true,
-      },
-      include: {
-        category: true,
-      },
-    });
+      })
+      .select('*, category:categories(*)')
+      .single();
+
+    if (error) throw error;
 
     return NextResponse.json({ service }, { status: 201 });
   } catch (error) {

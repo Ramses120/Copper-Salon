@@ -1,10 +1,20 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { cookies } from "next/headers";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+// Helper para crear cliente autenticado
+async function getAuthenticatedSupabase() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("sb-access-token")?.value;
+
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    token
+      ? { global: { headers: { Authorization: `Bearer ${token}` } } }
+      : {}
+  );
+}
 
 export async function PUT(
   request: Request,
@@ -12,6 +22,7 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
+    const supabase = await getAuthenticatedSupabase();
 
     const { nombre, especialidades, telefono, activo } =
       await request.json();
@@ -34,7 +45,7 @@ export async function PUT(
       .from("staff")
       .update({
         name: nombre,
-        specialties: JSON.stringify(especialidades),
+        specialty: JSON.stringify(especialidades),
         phone: telefono,
         active: activo !== false,
       })
@@ -55,8 +66,16 @@ export async function PUT(
     };
 
     return NextResponse.json({ staff: transformedStaff });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error updating staff:", error);
+
+    if (error?.code === 'PGRST303') {
+      return NextResponse.json(
+        { error: "Tu sesión ha expirado. Por favor inicia sesión nuevamente.", details: error },
+        { status: 401 }
+      );
+    }
+
     return NextResponse.json(
       { error: "Error al actualizar estilista", details: String(error) },
       { status: 500 }
@@ -70,6 +89,7 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
+    const supabase = await getAuthenticatedSupabase();
 
     const { error } = await supabase
       .from("staff")

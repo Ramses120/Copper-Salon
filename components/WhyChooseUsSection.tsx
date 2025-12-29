@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import salon from "@/assets/salon.jpg";
 
 export default function WhyChooseUsSection() {
@@ -25,12 +26,12 @@ export default function WhyChooseUsSection() {
 
   return (
     <section 
-      className="py-12 md:py-16 relative overflow-hidden bg-white"
+      className="py-16 md:py-24 relative overflow-hidden bg-white"
     >
       <div className="container mx-auto px-4 relative z-10">
         <div
           ref={sectionRef}
-          className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center"
+          className="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-16 items-center"
         >
           {/* Left side - Text content */}
           <div
@@ -41,14 +42,14 @@ export default function WhyChooseUsSection() {
             <h2 className="font-playfair text-2xl sm:text-3xl md:text-4xl font-bold text-[#1f1316] leading-tight mb-6">
               Por Qué Nuestros Clientes
               <br />
-              Nos eligen
+              Nos Eligen Siempre
             </h2>
-            <div className="space-y-4">
-              <p className="text-base sm:text-lg text-[#2d1b1e] font-montserrat leading-relaxed">
-                Nuestros clientes valoran y aprecian nuestro nivel de atención, la habilidad de nuestras estilistas y esteticistas, y nuestro enfoque profesional en cada detalle.
+            <div className="space-y-6 md:space-y-8">
+              <p className="text-sm sm:text-base md:text-lg text-[#2d1b1e] font-montserrat leading-relaxed">
+                Nuestros clientes valoran profundamente nuestro incomparable nivel de atención personalizada, la excepcional habilidad de nuestras estilistas y esteticistas altamente capacitadas, y nuestro enfoque meticulosamente profesional en cada detalle de su experiencia.
               </p>
-              <p className="text-base sm:text-lg text-[#2d1b1e] font-montserrat leading-relaxed">
-                En Copper, el trato es cálido, profesional y pensado para que salgas viéndote increíble… y sintiéndote aún mejor.
+              <p className="text-sm sm:text-base md:text-lg text-[#2d1b1e] font-montserrat leading-relaxed">
+                En Copper Beauty Salon & Spa, el trato que recibirás es genuinamente cálido, impecablemente profesional y cuidadosamente pensado para que salgas viéndote absolutamente increíble… y sintiéndote aún mejor de lo que imaginas.
               </p>
             </div>
           </div>
@@ -61,21 +62,23 @@ export default function WhyChooseUsSection() {
           >
             <div className="flex flex-col items-center">
               {/* Square image */}
-              <div className="relative w-64 h-64 md:w-72 md:h-72 rounded-lg overflow-hidden shadow-lg mb-6">
-                <img
-                  src={salon.src}
+              <div className="relative w-96 h-96 md:w-[28rem] md:h-[28rem] rounded-lg overflow-hidden shadow-2xl mb-8">
+                <Image
+                  src={salon}
                   alt="Salon"
                   className="w-full h-full object-cover"
+                  fill
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                 />
               </div>
 
               {/* Stats below image */}
-              <div className="flex gap-8 md:gap-12 justify-center w-full">
+              <div className="flex gap-12 md:gap-16 justify-center w-full">
                 <div className="text-center">
                   <h3 className="font-playfair text-2xl sm:text-3xl md:text-4xl font-bold text-[#d63d7a] mb-1">
                     3k+
                   </h3>
-                  <p className="text-sm sm:text-base text-[#2d1b1e] font-montserrat">
+                  <p className="text-xs sm:text-sm md:text-base text-[#2d1b1e] font-montserrat">
                     Clientes satisfechos
                   </p>
                 </div>
@@ -83,7 +86,7 @@ export default function WhyChooseUsSection() {
                   <h3 className="font-playfair text-2xl sm:text-3xl md:text-4xl font-bold text-[#d63d7a] mb-1">
                     7+
                   </h3>
-                  <p className="text-sm sm:text-base text-[#2d1b1e] font-montserrat">
+                  <p className="text-xs sm:text-sm md:text-base text-[#2d1b1e] font-montserrat">
                     Años de experiencia
                   </p>
                 </div>

@@ -45,25 +45,25 @@ export default function Header({ variant = "default" }: HeaderProps) {
 
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${headerBackground}`}
+      className={`fixed top-0 left-0 right-0 z-40 transition-all duration-500 ${headerBackground}`}
     >
       <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between h-20 lg:h-24">
+        <div className="flex items-center justify-between h-24 lg:h-32">
           {/* Logo - Premium Style */}
           <Link href="/" className="group flex flex-col items-start transition-transform hover:scale-105">
             <div className="flex items-baseline">
-              <span className="font-playfair text-3xl lg:text-4xl font-bold tracking-wide text-[#d63d7a] drop-shadow-sm">
+              <span className="font-playfair text-4xl lg:text-5xl font-bold tracking-wide text-[#d63d7a] drop-shadow-sm">
                 Copper
               </span>
             </div>
             <div className="flex items-center gap-1.5 -mt-1">
-              <span className={`font-serif text-xs lg:text-sm ${isLightMode ? "text-gray-700" : "text-gray-100"}`}>
+              <span className={`font-serif text-sm lg:text-base ${isLightMode ? "text-gray-700" : "text-gray-100"}`}>
                 Beauty Salon
               </span>
-              <span className={`font-serif italic text-xs lg:text-sm ${isLightMode ? "text-gray-600" : "text-gray-200"}`}>
+              <span className={`font-serif italic text-sm lg:text-base ${isLightMode ? "text-gray-600" : "text-gray-200"}`}>
                 &
               </span>
-              <span className={`font-serif text-xs lg:text-sm ${isLightMode ? "text-gray-700" : "text-gray-100"}`}>
+              <span className={`font-serif text-sm lg:text-base ${isLightMode ? "text-gray-700" : "text-gray-100"}`}>
                 Spa
               </span>
             </div>
@@ -92,7 +92,7 @@ export default function Header({ variant = "default" }: HeaderProps) {
           <div className="hidden md:block">
             <Button 
               asChild 
-              className="rounded-full font-montserrat font-semibold bg-black text-white hover:bg-[#d63d7a] shadow-md transition-all hover:scale-105 px-6 py-3 text-base lg:px-8 lg:py-4 lg:text-lg"
+              className="rounded-full font-montserrat font-semibold bg-black text-white hover:bg-[#d63d7a] shadow-md transition-all hover:scale-105 px-7 py-4 text-lg lg:px-10 lg:py-5 lg:text-xl"
             >
               <Link href="/servicios" className="flex items-center gap-2">
                 <Phone size={16} />

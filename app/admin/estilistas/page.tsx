@@ -1,21 +1,13 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Edit, Trash2, Loader2, Clock, ChevronDown } from "lucide-react";
-
-const specialties = [
-  "Colorista & Estilista",
-  "Maquilladora Profesional",
-  "Especialista en Uñas",
-  "Esteticista",
-  "Técnico en Extensiones",
-  "Estilista General",
-];
 
 const WEEKDAYS = [
   { value: 1, label: "Lunes" },
@@ -44,7 +36,80 @@ interface Schedule {
   isActive: boolean;
 }
 
+const formatTimeDisplay = (time: string) => {
+  if (!time) return "";
+  const [h, m] = time.split(':').map(Number);
+  const period = h >= 12 ? 'PM' : 'AM';
+  const displayH = h % 12 || 12;
+  return `${displayH}:${m.toString().padStart(2, '0')} ${period}`;
+};
+
+const TimeSelect = ({ value, onChange }: { value: string, onChange: (val: string) => void }) => {
+  // value is "HH:mm"
+  const [hours, minutes] = value ? value.split(':').map(Number) : [9, 0];
+  
+  const period = hours >= 12 ? 'PM' : 'AM';
+  const displayHours = hours % 12 || 12;
+  const displayMinutes = minutes;
+
+  const handleChange = (type: 'h' | 'm' | 'p', val: string) => {
+    let newH = hours;
+    let newM = minutes;
+    
+    if (type === 'h') {
+      const h = parseInt(val);
+      if (period === 'PM') {
+        newH = h === 12 ? 12 : h + 12;
+      } else {
+        newH = h === 12 ? 0 : h;
+      }
+    } else if (type === 'm') {
+      newM = parseInt(val);
+    } else if (type === 'p') {
+      if (val === 'AM' && hours >= 12) newH -= 12;
+      if (val === 'PM' && hours < 12) newH += 12;
+    }
+    
+    const strH = newH.toString().padStart(2, '0');
+    const strM = newM.toString().padStart(2, '0');
+    onChange(`${strH}:${strM}`);
+  };
+
+  return (
+    <div className="flex gap-1 items-center">
+      <select 
+        value={displayHours} 
+        onChange={(e) => handleChange('h', e.target.value)}
+        className="border rounded p-1 text-sm bg-white"
+      >
+        {Array.from({length: 12}, (_, i) => i + 1).map(h => (
+          <option key={h} value={h}>{h}</option>
+        ))}
+      </select>
+      <span>:</span>
+      <select 
+        value={displayMinutes} 
+        onChange={(e) => handleChange('m', e.target.value)}
+        className="border rounded p-1 text-sm bg-white"
+      >
+        {Array.from({length: 12}, (_, i) => i * 5).map(m => (
+          <option key={m} value={m}>{m.toString().padStart(2, '0')}</option>
+        ))}
+      </select>
+      <select 
+        value={period} 
+        onChange={(e) => handleChange('p', e.target.value)}
+        className="border rounded p-1 text-sm bg-white"
+      >
+        <option value="AM">AM</option>
+        <option value="PM">PM</option>
+      </select>
+    </div>
+  );
+};
+
 export default function AdminEstilistasPage() {
+  const router = useRouter();
   const [staff, setStaff] = useState<Staff[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -55,6 +120,8 @@ export default function AdminEstilistasPage() {
     staffId: string;
     weekday: number;
   } | null>(null);
+  const [editingScheduleRow, setEditingScheduleRow] = useState<string | null>(null);
+  const [editRowData, setEditRowData] = useState<{ startTime: string; endTime: string } | null>(null);
   const [scheduleFormData, setScheduleFormData] = useState({
     startTime: "09:00",
     endTime: "17:30",
@@ -116,15 +183,6 @@ export default function AdminEstilistasPage() {
     }
   };
 
-  const toggleEspecialidad = (especialidad: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      especialidades: prev.especialidades.includes(especialidad)
-        ? prev.especialidades.filter((e) => e !== especialidad)
-        : [...prev.especialidades, especialidad],
-    }));
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -146,13 +204,24 @@ export default function AdminEstilistasPage() {
       });
 
       if (!response.ok) {
-        throw new Error('Error al guardar estilista');
+        if (response.status === 401) {
+          alert("Tu sesión ha expirado. Por favor inicia sesión nuevamente.");
+          router.push("/admin/login");
+          return;
+        }
+        const errorData = await response.json();
+        console.error("Server error data:", errorData);
+        const errorMessage = errorData.details 
+          ? (typeof errorData.details === 'object' ? JSON.stringify(errorData.details) : errorData.details)
+          : (errorData.error || 'Error al guardar estilista');
+        throw new Error(errorMessage);
       }
 
       await fetchStaff();
       resetForm();
       alert(editingId ? 'Estilista actualizado exitosamente' : 'Estilista agregado exitosamente');
     } catch (error: any) {
+      console.error("Error saving staff:", error);
       alert(error.message || 'Error al guardar estilista');
     } finally {
       setLoading(false);
@@ -337,20 +406,16 @@ export default function AdminEstilistasPage() {
               </div>
 
               <div>
-                <Label>Especialidades * (Selecciona al menos una)</Label>
-                <div className="space-y-2 mt-2 p-3 border rounded bg-gray-50">
-                  {specialties.map((specialty) => (
-                    <label key={specialty} className="flex items-center space-x-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={formData.especialidades.includes(specialty)}
-                        onChange={() => toggleEspecialidad(specialty)}
-                        className="w-4 h-4 rounded"
-                      />
-                      <span className="text-sm">{specialty}</span>
-                    </label>
-                  ))}
-                </div>
+                <Label htmlFor="especialidades">Especialidad *</Label>
+                <Input
+                  id="especialidades"
+                  required
+                  value={formData.especialidades.join(", ")}
+                  onChange={(e) =>
+                    setFormData({ ...formData, especialidades: [e.target.value] })
+                  }
+                  placeholder="Ej: Colorista, Estilista"
+                />
               </div>
 
               <div>
@@ -492,50 +557,76 @@ export default function AdminEstilistasPage() {
                                 <p className="font-medium text-gray-900">
                                   {schedule.dayName}
                                 </p>
-                                <div className="flex gap-3 mt-2">
-                                  <div>
-                                    <Label className="text-xs text-gray-600">Inicio</Label>
-                                    <Input
-                                      type="time"
-                                      defaultValue={schedule.startTime}
-                                      onBlur={(e) =>
-                                        handleUpdateSchedule(
-                                          s.id,
-                                          schedule.id,
-                                          e.currentTarget.value,
-                                          schedule.endTime
-                                        )
-                                      }
-                                      className="w-24 text-sm"
-                                    />
+                                {editingScheduleRow === schedule.id && editRowData ? (
+                                  <div className="flex gap-3 mt-2 items-end flex-wrap">
+                                    <div>
+                                      <Label className="text-xs text-gray-600">Inicio</Label>
+                                      <TimeSelect 
+                                        value={editRowData.startTime} 
+                                        onChange={(val) => setEditRowData({...editRowData, startTime: val})} 
+                                      />
+                                    </div>
+                                    <div>
+                                      <Label className="text-xs text-gray-600">Fin</Label>
+                                      <TimeSelect 
+                                        value={editRowData.endTime} 
+                                        onChange={(val) => setEditRowData({...editRowData, endTime: val})} 
+                                      />
+                                    </div>
+                                    <div className="flex gap-1">
+                                      <Button 
+                                        size="sm" 
+                                        onClick={() => {
+                                          handleUpdateSchedule(s.id, schedule.id, editRowData.startTime, editRowData.endTime);
+                                          setEditingScheduleRow(null);
+                                          setEditRowData(null);
+                                        }}
+                                      >
+                                        Guardar
+                                      </Button>
+                                      <Button 
+                                        variant="outline" 
+                                        size="sm" 
+                                        onClick={() => {
+                                          setEditingScheduleRow(null);
+                                          setEditRowData(null);
+                                        }}
+                                      >
+                                        Cancelar
+                                      </Button>
+                                    </div>
                                   </div>
-                                  <div>
-                                    <Label className="text-xs text-gray-600">Fin</Label>
-                                    <Input
-                                      type="time"
-                                      defaultValue={schedule.endTime}
-                                      onBlur={(e) =>
-                                        handleUpdateSchedule(
-                                          s.id,
-                                          schedule.id,
-                                          schedule.startTime,
-                                          e.currentTarget.value
-                                        )
-                                      }
-                                      className="w-24 text-sm"
-                                    />
+                                ) : (
+                                  <div className="flex gap-3 mt-2 items-center">
+                                    <div className="text-sm text-gray-700 font-medium">
+                                      {formatTimeDisplay(schedule.startTime)} - {formatTimeDisplay(schedule.endTime)}
+                                    </div>
                                   </div>
-                                </div>
+                                )}
                               </div>
-                              <Button
-                                variant="destructive"
-                                size="sm"
-                                onClick={() =>
-                                  handleDeleteSchedule(s.id, schedule.id)
-                                }
-                              >
-                                <Trash2 size={16} />
-                              </Button>
+                              {editingScheduleRow !== schedule.id && (
+                                <div className="flex gap-1">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      setEditingScheduleRow(schedule.id);
+                                      setEditRowData({ startTime: schedule.startTime, endTime: schedule.endTime });
+                                    }}
+                                  >
+                                    <Edit size={16} />
+                                  </Button>
+                                  <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    onClick={() =>
+                                      handleDeleteSchedule(s.id, schedule.id)
+                                    }
+                                  >
+                                    <Trash2 size={16} />
+                                  </Button>
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -571,26 +662,24 @@ export default function AdminEstilistasPage() {
                           <div className="grid grid-cols-2 gap-3">
                             <div>
                               <Label>Hora de inicio</Label>
-                              <Input
-                                type="time"
+                              <TimeSelect
                                 value={scheduleFormData.startTime}
-                                onChange={(e) =>
+                                onChange={(val) =>
                                   setScheduleFormData({
                                     ...scheduleFormData,
-                                    startTime: e.target.value,
+                                    startTime: val,
                                   })
                                 }
                               />
                             </div>
                             <div>
                               <Label>Hora de fin</Label>
-                              <Input
-                                type="time"
+                              <TimeSelect
                                 value={scheduleFormData.endTime}
-                                onChange={(e) =>
+                                onChange={(val) =>
                                   setScheduleFormData({
                                     ...scheduleFormData,
-                                    endTime: e.target.value,
+                                    endTime: val,
                                   })
                                 }
                               />

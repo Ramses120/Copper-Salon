@@ -10,24 +10,31 @@ export async function GET() {
     }
 
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Use local date string YYYY-MM-DD to avoid UTC shifts
+    const todayStr = today.toLocaleDateString('en-CA'); // YYYY-MM-DD format
 
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = tomorrow.toLocaleDateString('en-CA');
 
     const startOfWeek = new Date(today);
     startOfWeek.setDate(today.getDate() - today.getDay());
+    const startOfWeekStr = startOfWeek.toLocaleDateString('en-CA');
 
     const endOfWeek = new Date(startOfWeek);
     endOfWeek.setDate(startOfWeek.getDate() + 7);
+    const endOfWeekStr = endOfWeek.toLocaleDateString('en-CA');
 
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const startOfMonthStr = startOfMonth.toLocaleDateString('en-CA');
+    
     const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    const endOfMonthStr = endOfMonth.toLocaleDateString('en-CA');
 
     // Reservas de hoy
     const todayBookings = await db.booking.count({
       where: {
-        date: today,
+        date: todayStr,
         status: {
           in: ["pending", "confirmed"],
         },
@@ -38,8 +45,8 @@ export async function GET() {
     const weekBookings = await db.booking.findMany({
       where: {
         date: {
-          gte: startOfWeek,
-          lte: endOfWeek,
+          gte: startOfWeekStr,
+          lte: endOfWeekStr,
         },
         status: "completed",
       },
@@ -64,8 +71,8 @@ export async function GET() {
     const monthBookings = await db.booking.findMany({
       where: {
         date: {
-          gte: startOfMonth,
-          lte: endOfMonth,
+          gte: startOfMonthStr,
+          lte: endOfMonthStr,
         },
       },
       select: {
@@ -83,13 +90,16 @@ export async function GET() {
       today.getMonth() - 1,
       1
     );
+    const lastMonthStartStr = lastMonthStart.toLocaleDateString('en-CA');
+    
     const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0);
+    const lastMonthEndStr = lastMonthEnd.toLocaleDateString('en-CA');
 
     const lastMonthBookings = await db.booking.count({
       where: {
         date: {
-          gte: lastMonthStart,
-          lte: lastMonthEnd,
+          gte: lastMonthStartStr,
+          lte: lastMonthEndStr,
         },
         status: "completed",
       },
@@ -98,8 +108,8 @@ export async function GET() {
     const currentMonthBookings = await db.booking.count({
       where: {
         date: {
-          gte: startOfMonth,
-          lte: today,
+          gte: startOfMonthStr,
+          lte: todayStr,
         },
         status: "completed",
       },
@@ -132,7 +142,7 @@ export async function GET() {
       },
       where: {
         date: {
-          gte: today,
+          gte: todayStr,
         },
       },
     });
@@ -147,9 +157,11 @@ export async function GET() {
       recentBookings: recentBookings.map((booking: any) => ({
         id: booking.id,
         cliente: booking.clientName,
-        servicio: booking.services.map((s: any) => s.service.name).join(", "),
-        estilista: booking.staff.name,
-        fecha: booking.date.toISOString().split("T")[0],
+        telefono: booking.clientPhone,
+        notas: booking.notes,
+        servicio: booking.services?.map((s: any) => s.service?.name).filter(Boolean).join(", ") || "Sin servicio",
+        estilista: booking.staff?.name || "Sin asignar",
+        fecha: booking.date ? booking.date.toISOString().split("T")[0] : "",
         hora: booking.startTime,
         estado: booking.status,
       })),

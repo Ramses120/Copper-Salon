@@ -42,15 +42,11 @@ npm install
 
 3. **Configurar base de datos**
 
-```bash
-npx prisma db push
-```
+Ejecutar el script SQL en el panel de Supabase.
 
 4. **Crear usuario admin inicial**
 
-```bash
-npx prisma db seed
-```
+El usuario admin se crea automáticamente con el script SQL.
 
 5. **Iniciar el servidor de desarrollo**
 
@@ -78,10 +74,8 @@ Copper.v2/
 │   ├── HeroSection.tsx
 │   └── ...
 ├── lib/                   # Utilidades y configuración
-│   ├── db.ts             # Cliente Prisma
+│   ├── db.ts             # Cliente Supabase (Wrapper)
 │   └── utils.ts          # Funciones helper
-├── prisma/               # Schema y migraciones
-│   └── schema.prisma
 └── public/               # Archivos estáticos
 ```
 
@@ -126,17 +120,16 @@ npm run dev      # Servidor de desarrollo
 npm run build    # Build de producción
 npm run start    # Iniciar servidor de producción
 npm run lint     # Linter
-npx prisma studio  # Interfaz visual de BD
 ```
 
 ## 📝 Notas de Desarrollo
 
 - **Framework**: Next.js 15 con App Router
 - **Styling**: Tailwind CSS + shadcn/ui
-- **Base de Datos**: SQLite (desarrollo) / PostgreSQL (producción recomendada)
-- **ORM**: Prisma
-- **Autenticación**: JWT con cookies
-- **Upload de imágenes**: Sistema de archivos + Sharp para optimización
+- **Base de Datos**: Supabase (PostgreSQL)
+- **ORM**: Supabase Client (Directo)
+- **Autenticación**: Supabase Auth
+- **Upload de imágenes**: Supabase Storage
 
 ## 🎯 Próximos Pasos
 

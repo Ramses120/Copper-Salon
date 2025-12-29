@@ -44,6 +44,10 @@ export async function GET(request: Request) {
     // Marcar slots ocupados
     const unavailableSlots = new Set<string>();
 
+    /* 
+    // RESTRICTION REMOVED BY USER REQUEST:
+    // Allow double booking / ignore existing bookings.
+    
     for (const booking of bookings || []) {
       const duracionTotal = (booking.booking_services || []).reduce(
         (sum: number, bs: any) => sum + (bs.service?.duration_minutes || 60),
@@ -65,13 +69,16 @@ export async function GET(request: Request) {
         }
       });
     }
+    */
 
-    const availableSlots = slots.filter((slot) => !unavailableSlots.has(slot));
+    // Return all slots as available
+    const availableSlots = slots;
 
     return NextResponse.json({
       fecha,
       staffId,
       availableSlots,
+      slots, // Include 'slots' for compatibility if frontend uses it
       totalSlots: slots.length,
       availableCount: availableSlots.length,
       ocupadas: Array.from(unavailableSlots),

@@ -57,6 +57,7 @@ interface Booking {
 interface Staff {
   id: string;
   name: string;
+  nombre?: string; // Add optional nombre to handle API response
 }
 
 interface Service {
@@ -64,6 +65,7 @@ interface Service {
   name: string;
   price: number;
   categoryId: string;
+  category_id?: string; // Add optional category_id
   category?: Category;
 }
 
@@ -72,6 +74,70 @@ interface Category {
   name: string;
   services?: Service[];
 }
+
+const TimeSelect = ({ value, onChange }: { value: string, onChange: (val: string) => void }) => {
+  // value is "HH:mm"
+  const [hours, minutes] = value ? value.split(':').map(Number) : [9, 0];
+  
+  const period = hours >= 12 ? 'PM' : 'AM';
+  const displayHours = hours % 12 || 12;
+  const displayMinutes = minutes;
+
+  const handleChange = (type: 'h' | 'm' | 'p', val: string) => {
+    let newH = hours;
+    let newM = minutes;
+    
+    if (type === 'h') {
+      const h = parseInt(val);
+      if (period === 'PM') {
+        newH = h === 12 ? 12 : h + 12;
+      } else {
+        newH = h === 12 ? 0 : h;
+      }
+    } else if (type === 'm') {
+      newM = parseInt(val);
+    } else if (type === 'p') {
+      if (val === 'AM' && hours >= 12) newH -= 12;
+      if (val === 'PM' && hours < 12) newH += 12;
+    }
+    
+    const strH = newH.toString().padStart(2, '0');
+    const strM = newM.toString().padStart(2, '0');
+    onChange(`${strH}:${strM}`);
+  };
+
+  return (
+    <div className="flex gap-1 items-center">
+      <select 
+        value={displayHours} 
+        onChange={(e) => handleChange('h', e.target.value)}
+        className="border rounded p-1 text-sm bg-white h-10"
+      >
+        {Array.from({length: 12}, (_, i) => i + 1).map(h => (
+          <option key={h} value={h}>{h}</option>
+        ))}
+      </select>
+      <span>:</span>
+      <select 
+        value={displayMinutes} 
+        onChange={(e) => handleChange('m', e.target.value)}
+        className="border rounded p-1 text-sm bg-white h-10"
+      >
+        {Array.from({length: 12}, (_, i) => i * 5).map(m => (
+          <option key={m} value={m}>{m.toString().padStart(2, '0')}</option>
+        ))}
+      </select>
+      <select 
+        value={period} 
+        onChange={(e) => handleChange('p', e.target.value)}
+        className="border rounded p-1 text-sm bg-white h-10"
+      >
+        <option value="AM">AM</option>
+        <option value="PM">PM</option>
+      </select>
+    </div>
+  );
+};
 
 export default function AdminReservasPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -87,6 +153,11 @@ export default function AdminReservasPage() {
   const [services, setServices] = useState<Service[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
+  
+  // Customer check states
+  const [customerStatus, setCustomerStatus] = useState<{ exists: boolean; customer?: any } | null>(null);
+  const [checkingCustomer, setCheckingCustomer] = useState(false);
+  const [savingCustomer, setSavingCustomer] = useState(false);
 
   const [formData, setFormData] = useState({
     clientName: "",
@@ -98,6 +169,64 @@ export default function AdminReservasPage() {
     serviceIds: [] as string[],
     notes: "",
   });
+
+  // Check customer when selectedBooking changes
+  useEffect(() => {
+    if (selectedBooking) {
+      checkCustomer(selectedBooking.clientPhone);
+    } else {
+      setCustomerStatus(null);
+    }
+  }, [selectedBooking]);
+
+  const checkCustomer = async (phone: string) => {
+    setCheckingCustomer(true);
+    try {
+      const res = await fetch(`/api/customers/by-phone?phone=${encodeURIComponent(phone)}`);
+      const data = await res.json();
+      if (data) {
+        setCustomerStatus({ exists: true, customer: data });
+      } else {
+        setCustomerStatus({ exists: false });
+      }
+    } catch (error) {
+      console.error("Error checking customer:", error);
+    } finally {
+      setCheckingCustomer(false);
+    }
+  };
+
+  const saveCustomer = async () => {
+    if (!selectedBooking) return;
+    setSavingCustomer(true);
+    try {
+      const res = await fetch("/api/customers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: selectedBooking.clientName,
+          phone: selectedBooking.clientPhone,
+          notes: `Cliente creado desde reserva`,
+        }),
+      });
+      
+      if (res.ok) {
+        const newCustomer = await res.json();
+        setCustomerStatus({ exists: true, customer: newCustomer });
+        // Optional: Show a toast or alert
+      } else {
+        const error = await res.json();
+        console.error("Error saving customer:", error);
+        alert(`Error: ${error.error || "No se pudo guardar el cliente"}`);
+      }
+    } catch (error) {
+      console.error("Error saving customer:", error);
+      alert("Error al guardar cliente");
+    } finally {
+      setSavingCustomer(false);
+    }
+  };
+
 
   // Cargar reservas y datos iniciales
   useEffect(() => {
@@ -123,25 +252,49 @@ export default function AdminReservasPage() {
 
   const fetchStaffAndServices = async () => {
     try {
-      const [staffRes, categoriesRes] = await Promise.all([
+      const [staffRes, categoriesRes, servicesRes] = await Promise.all([
         fetch("/api/staff"),
         fetch("/api/categories"),
+        fetch("/api/services"),
       ]);
 
       if (staffRes.ok) {
         const staffData = await staffRes.json();
-        setStaff(Array.isArray(staffData) ? staffData : staffData.staff || []);
+        const staffList = Array.isArray(staffData) ? staffData : staffData.staff || [];
+        // Map nombre to name if needed
+        setStaff(staffList.map((s: any) => ({
+          ...s,
+          name: s.name || s.nombre || "Sin nombre"
+        })));
       }
 
+      let cats: Category[] = [];
       if (categoriesRes.ok) {
         const categoriesData = await categoriesRes.json();
-        const cats = Array.isArray(categoriesData) ? categoriesData : categoriesData.categories || [];
-        setCategories(cats);
+        cats = Array.isArray(categoriesData) ? categoriesData : categoriesData.categories || [];
+      }
+
+      if (servicesRes.ok) {
+        const servicesData = await servicesRes.json();
+        const servicesList = servicesData.services || [];
         
-        // Expandir primera categoría
-        if (cats.length > 0) {
-          setExpandedCategories({ [cats[0].id]: true });
-        }
+        // Nest services into categories
+        cats = cats.map((cat) => ({
+          ...cat,
+          services: servicesList.filter((s: any) => 
+            (s.category?.id === cat.id) || 
+            (s.categoryId === cat.id) || 
+            (s.category_id === cat.id) ||
+            (s.categoryId === cat.id.toString()) // Handle string/number mismatch
+          )
+        }));
+      }
+
+      setCategories(cats);
+        
+      // Expandir primera categoría
+      if (cats.length > 0) {
+        setExpandedCategories({ [cats[0].id]: true });
       }
     } catch (error) {
       console.error("Error fetching staff and categories:", error);
@@ -213,9 +366,13 @@ export default function AdminReservasPage() {
         if (selectedBooking?.id === id) {
           setSelectedBooking({ ...selectedBooking, status: newStatus as any });
         }
+        // Refresh stats if needed, or just alert
+      } else {
+        alert("Error al actualizar estado");
       }
     } catch (error) {
       console.error("Error updating booking:", error);
+      alert("Error de conexión");
     } finally {
       setUpdating(false);
     }
@@ -250,8 +407,8 @@ export default function AdminReservasPage() {
       clientEmail: booking.clientEmail || "",
       date: booking.date,
       startTime: booking.startTime,
-      staffId: booking.staffId,
-      serviceIds: booking.services.map((s) => s.service.id),
+      staffId: booking.staffId ? String(booking.staffId) : "",
+      serviceIds: booking.services.map((s) => String(s.service.id)),
       notes: booking.notes || "",
     });
     setEditingBooking(booking);
@@ -307,22 +464,24 @@ export default function AdminReservasPage() {
         fetchBookings();
       } else {
         const error = await response.json();
-        alert(error.error || "Error en la operación");
+        console.error("Error response:", error);
+        alert(`Error: ${error.error}\nDetalles: ${error.details || error.message || "Sin detalles"}`);
       }
     } catch (error) {
       console.error("Error saving booking:", error);
-      alert("Error al guardar la reserva");
+      alert(`Error al guardar la reserva: ${String(error)}`);
     } finally {
       setUpdating(false);
     }
   };
 
   const toggleService = (serviceId: string) => {
+    const idStr = String(serviceId);
     setFormData((prev) => ({
       ...prev,
-      serviceIds: prev.serviceIds.includes(serviceId)
-        ? prev.serviceIds.filter((id) => id !== serviceId)
-        : [...prev.serviceIds, serviceId],
+      serviceIds: prev.serviceIds.includes(idStr)
+        ? prev.serviceIds.filter((id) => id !== idStr)
+        : [...prev.serviceIds, idStr],
     }));
   };
 
@@ -331,6 +490,15 @@ export default function AdminReservasPage() {
       ...prev,
       [categoryId]: !prev[categoryId],
     }));
+  };
+
+  const formatTime12Hour = (time24: string) => {
+    if (!time24) return "";
+    const [hours, minutes] = time24.split(":");
+    const h = parseInt(hours, 10);
+    const ampm = h >= 12 ? "PM" : "AM";
+    const h12 = h % 12 || 12;
+    return `${h12}:${minutes} ${ampm}`;
   };
 
   return (
@@ -394,17 +562,7 @@ export default function AdminReservasPage() {
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Email
-                  </label>
-                  <Input
-                    type="email"
-                    placeholder="Email (opcional)"
-                    value={formData.clientEmail}
-                    onChange={(e) => setFormData({ ...formData, clientEmail: e.target.value })}
-                  />
-                </div>
+                {/* Email field removed as per user request */}
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -416,7 +574,7 @@ export default function AdminReservasPage() {
                     </SelectTrigger>
                     <SelectContent>
                       {staff.map((s) => (
-                        <SelectItem key={s.id} value={s.id}>
+                        <SelectItem key={s.id} value={String(s.id)}>
                           {s.name}
                         </SelectItem>
                       ))}
@@ -440,11 +598,9 @@ export default function AdminReservasPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Hora *
                   </label>
-                  <Input
-                    type="time"
-                    value={formData.startTime}
-                    onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
-                    required
+                  <TimeSelect 
+                    value={formData.startTime} 
+                    onChange={(value) => setFormData({ ...formData, startTime: value })}
                   />
                 </div>
               </div>
@@ -486,8 +642,8 @@ export default function AdminReservasPage() {
                                 >
                                   <input
                                     type="checkbox"
-                                    checked={formData.serviceIds.includes(service.id)}
-                                    onChange={() => toggleService(service.id)}
+                                    checked={formData.serviceIds.includes(String(service.id))}
+                                    onChange={() => toggleService(String(service.id))}
                                     className="w-4 h-4 cursor-pointer"
                                   />
                                   <span className="flex-1 text-sm">
@@ -659,7 +815,7 @@ export default function AdminReservasPage() {
                   )}
                   <div className="flex items-center">
                     <Calendar size={16} className="mr-2 text-pink-600" />
-                    {new Date(booking.date).toLocaleDateString("es-ES")} - {booking.startTime}
+                    {new Date(booking.date).toLocaleDateString("es-ES")} - {formatTime12Hour(booking.startTime)}
                   </div>
                 </div>
 
@@ -764,7 +920,35 @@ export default function AdminReservasPage() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Teléfono</p>
-                  <p className="text-gray-900">{selectedBooking.clientPhone}</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-gray-900">{selectedBooking.clientPhone}</p>
+                    {checkingCustomer ? (
+                      <Loader2 size={14} className="animate-spin text-gray-400" />
+                    ) : customerStatus?.exists ? (
+                      <Badge className="bg-green-50 text-green-700 border-green-200 flex items-center gap-1 h-6">
+                        <CheckCircle2 size={12} />
+                        Registrado
+                      </Badge>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 px-2 text-pink-600 hover:text-pink-700 hover:bg-pink-50 text-xs"
+                        onClick={saveCustomer}
+                        disabled={savingCustomer}
+                        title="Guardar cliente en base de datos"
+                      >
+                        {savingCustomer ? (
+                          <Loader2 size={12} className="animate-spin" />
+                        ) : (
+                          <>
+                            <Plus size={12} className="mr-1" />
+                            Guardar Cliente
+                          </>
+                        )}
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 {selectedBooking.clientEmail && (
                   <div>
@@ -781,7 +965,7 @@ export default function AdminReservasPage() {
                 <div>
                   <p className="text-sm text-gray-500">Hora</p>
                   <p className="text-gray-900">
-                    {selectedBooking.startTime} - {selectedBooking.endTime}
+                    {formatTime12Hour(selectedBooking.startTime)} - {formatTime12Hour(selectedBooking.endTime)}
                   </p>
                 </div>
                 <div>

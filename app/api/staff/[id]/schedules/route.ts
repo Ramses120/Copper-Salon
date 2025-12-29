@@ -1,7 +1,22 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { cookies } from "next/headers";
 
-const supabase = createClient(
+// Helper para crear cliente autenticado
+async function getAuthenticatedSupabase() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("sb-access-token")?.value;
+
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    token
+      ? { global: { headers: { Authorization: `Bearer ${token}` } } }
+      : {}
+  );
+}
+
+const supabaseAnon = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
@@ -19,13 +34,15 @@ const WEEKDAYS = {
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { data: schedules, error } = await supabase
+    const { id } = await params;
+    // Usamos cliente anónimo para lectura (público)
+    const { data: schedules, error } = await supabaseAnon
       .from("staff_schedules")
       .select("*")
-      .eq("team_member_id", params.id)
+      .eq("team_member_id", id)
       .order("weekday", { ascending: true });
 
     if (error) throw error;
@@ -52,10 +69,12 @@ export async function GET(
 
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const { weekday, startTime, endTime } = await request.json();
+    const supabase = await getAuthenticatedSupabase();
 
     if (weekday === undefined || !startTime || !endTime) {
       return NextResponse.json(
@@ -76,7 +95,7 @@ export async function POST(
     const { data: existing } = await supabase
       .from("staff_schedules")
       .select("id")
-      .eq("team_member_id", params.id)
+      .eq("team_member_id", id)
       .eq("weekday", weekday)
       .single();
 
@@ -89,7 +108,7 @@ export async function POST(
           end_time: endTime,
           is_active: true,
         })
-        .eq("team_member_id", params.id)
+        .eq("team_member_id", id)
         .eq("weekday", weekday)
         .select()
         .single();
@@ -115,7 +134,7 @@ export async function POST(
     const { data: schedule, error } = await supabase
       .from("staff_schedules")
       .insert({
-        team_member_id: params.id,
+        team_member_id: id,
         weekday,
         start_time: startTime,
         end_time: endTime,
@@ -150,10 +169,12 @@ export async function POST(
 
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const { scheduleId, startTime, endTime, isActive } = await request.json();
+    const supabase = await getAuthenticatedSupabase();
 
     if (!scheduleId) {
       return NextResponse.json(
@@ -170,7 +191,7 @@ export async function PUT(
         is_active: isActive,
       })
       .eq("id", scheduleId)
-      .eq("team_member_id", params.id)
+      .eq("team_member_id", id)
       .select()
       .single();
 
@@ -197,10 +218,12 @@ export async function PUT(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const { scheduleId } = await request.json();
+    const supabase = await getAuthenticatedSupabase();
 
     if (!scheduleId) {
       return NextResponse.json(
@@ -213,7 +236,7 @@ export async function DELETE(
       .from("staff_schedules")
       .delete()
       .eq("id", scheduleId)
-      .eq("team_member_id", params.id);
+      .eq("team_member_id", id);
 
     if (error) throw error;
 

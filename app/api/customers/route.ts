@@ -1,65 +1,47 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+import { cookies } from "next/headers";
 
-interface Customer {
-  id: string;
-  name: string;
-  phone: string;
-  email?: string;
-  address?: string;
-  city?: string;
-  notes?: string;
-  active: boolean;
-  created_at: string;
-  updated_at: string;
+// Helper para crear cliente autenticado
+async function getAuthenticatedSupabase() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("sb-access-token")?.value;
+
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    token
+      ? { global: { headers: { Authorization: `Bearer ${token}` } } }
+      : {}
+  );
 }
 
-// GET - Listar clientes (con búsqueda opcional)
+// GET - Listar todos los clientes
 export async function GET(req: NextRequest) {
   try {
-    const searchQuery = req.nextUrl.searchParams.get("search") || "";
+    console.log("[GET /api/customers] Fetching all customers...");
+    
+    const supabase = await getAuthenticatedSupabase();
+    
+    const { data: customers, error } = await supabase
+      .from('customers')
+      .select('*')
+      .order('name', { ascending: true });
 
-    // Simulamos búsqueda - en producción usaremos Supabase
-    let customers: Customer[] = [
-      {
-        id: "1",
-        name: "María González",
-        phone: "+1-305-555-1234",
-        email: "maria@email.com",
-        address: "123 Calle Principal",
-        city: "Miami",
-        notes: "Cliente frecuente",
-        active: true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      },
-      {
-        id: "2",
-        name: "Sofia Martínez",
-        phone: "+1-305-555-5678",
-        email: "sofia@email.com",
-        address: "456 Avenida Central",
-        city: "Miami",
-        notes: "Prefiere servicios de cabello",
-        active: true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      },
-    ];
+    if (error) throw error;
 
-    // Filtrar por búsqueda
-    if (searchQuery) {
-      customers = customers.filter(
-        (c) =>
-          c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          c.phone.includes(searchQuery)
-      );
-    }
-
-    return NextResponse.json({ customers });
+    console.log("[GET /api/customers] Retrieved customers:", customers?.length);
+    return NextResponse.json(customers);
   } catch (error) {
-    console.error("Error fetching customers:", error);
+    console.error("[GET /api/customers] Error fetching customers:", error);
+    
+    let errorMessage = "Error desconocido";
+    if (error instanceof Error) {
+      errorMessage = error.message;
+    }
+    
     return NextResponse.json(
-      { error: "Error al obtener clientes" },
+      { error: "Error al obtener clientes", details: errorMessage },
       { status: 500 }
     );
   }
@@ -69,34 +51,61 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { name, phone, email, address, city, notes } = body;
+    const { name, phone, notes } = body;
+
+    console.log("[POST /api/customers] Creating customer:", { name, phone, notes });
 
     if (!name || !phone) {
+      console.warn("[POST /api/customers] Missing required fields:", { name, phone });
       return NextResponse.json(
         { error: "Nombre y teléfono son requeridos" },
         { status: 400 }
       );
     }
 
-    // En producción: guardar en Supabase
-    const newCustomer: Customer = {
-      id: Math.random().toString(36).substr(2, 9),
-      name,
-      phone,
-      email,
-      address,
-      city,
-      notes,
-      active: true,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
+    console.log("[POST /api/customers] Using authenticated Supabase client...");
+    const supabase = await getAuthenticatedSupabase();
+    
+    const { data: newCustomer, error } = await supabase
+      .from('customers')
+      .insert({
+        name,
+        phone,
+        notes: notes || "",
+        active: true
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error("[POST /api/customers] Supabase error:", error);
+      throw error;
+    }
+
+    console.log("[POST /api/customers] Customer created successfully:", newCustomer);
 
     return NextResponse.json(newCustomer, { status: 201 });
   } catch (error) {
-    console.error("Error creating customer:", error);
+    console.error("[POST /api/customers] Error creating customer:", error);
+    
+    let errorMessage = "Error desconocido";
+    let errorStack = "";
+    
+    if (error instanceof Error) {
+      errorMessage = error.message;
+      errorStack = error.stack || "";
+    } else if (typeof error === 'object' && error !== null) {
+      errorMessage = JSON.stringify(error);
+    }
+    
+    console.error("[POST /api/customers] Error details:", { errorMessage, errorStack, fullError: error });
+    
     return NextResponse.json(
-      { error: "Error al crear cliente" },
+      { 
+        error: "Error al crear cliente", 
+        details: errorMessage,
+        stack: process.env.NODE_ENV === 'development' ? errorStack : undefined
+      },
       { status: 500 }
     );
   }

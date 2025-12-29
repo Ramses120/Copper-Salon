@@ -107,68 +107,15 @@ export default function HeroSection() {
 
   const slide = slides[currentSlide];
 
-  // Renderizar el primer slide inicialmente para evitar hydration mismatch
-  if (!mounted) {
-    return (
-      <section
-        suppressHydrationWarning
-        className="relative overflow-hidden min-h-screen flex items-center"
-        style={{
-          backgroundImage: `url(${hero.src})`,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-        }}
-      >
-        <style>{slideInStyles}</style>
-        
-        {/* Vector overlay con zoom */}
-        <div
-          className="absolute inset-0 vector-zoom-in"
-          style={{
-            backgroundImage: `url(${slides[0].vector})`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-          }}
-        />
-        
-        <div className="container mx-auto px-4 pt-16 pb-12 md:pt-24 md:pb-16 lg:pt-32 relative z-10">
-          <div className="w-full max-w-4xl">
-            <div className="space-y-4 sm:space-y-5 slide-in-text">
-              <div className="space-y-3">
-                <h3 className="font-serif text-2xl sm:text-2xl md:text-5xl lg:text-4xl font-normal text-black leading-[1.08] max-w-2xl">
-                  {slides[0].h3}
-                  <div className="h-1.5 w-16 bg-gradient-to-r from-[#d63d7a] to-transparent mt-3 rounded-full"></div>
-                </h3>
-              </div>
-              <div className="space-y-2 max-w-2xl">
-                <h4 className="text-sm sm:text-base md:text-lg text-black font-normal leading-relaxed">
-                  {slides[0].h4}
-                </h4>
-              </div>
-              {slides[0].showButton && (
-                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full pt-1">
-                  <Link href="/reservar">
-                    <Button className="text-sm sm:text-base md:text-lg px-5 py-3 sm:px-6 sm:py-4 md:px-8 md:py-5 lg:px-10 lg:py-6 rounded-full bg-white text-[#2c1e21] hover:bg-[#d63d7a] hover:text-white transition-all font-montserrat font-semibold">
-                      Reserva tu cita
-                    </Button>
-                  </Link>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </section>
-    );
-  }
-
   return (
     <section
       suppressHydrationWarning
-      className="relative overflow-hidden min-h-screen flex items-center"
+      className="relative overflow-hidden h-[885px] md:h-[995px] flex items-center"
       style={{
         backgroundImage: `url(${hero.src})`,
         backgroundSize: "cover",
         backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
       }}
     >
       <style>{slideInStyles}</style>
@@ -185,7 +132,7 @@ export default function HeroSection() {
       />
       
       {/* Content container */}
-      <div className="container mx-auto px-4 pt-16 pb-12 md:pt-24 md:pb-16 lg:pt-32 relative z-10">
+      <div className="container mx-auto px-4 pt-8 pb-8 md:pt-12 md:pb-12 relative z-10">
         <div className="w-full max-w-4xl">
           {/* Text content with slide-in animation */}
           <div
@@ -215,7 +162,7 @@ export default function HeroSection() {
                   )}
                 </div>
               ) : (
-                <h3 className="font-serif text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-black leading-[1.08] max-w-3xl">
+                <h3 className="font-serif text-3xl sm:text-4xl md:text-4xl lg:text-5xl font-bold text-black leading-[1.08] max-w-3xl">
                   {slide.h3}
                   {currentSlide < 2 && (
                     <div className="h-1.5 w-16 bg-gradient-to-r from-[#d63d7a] to-transparent mt-3 rounded-full"></div>
@@ -227,18 +174,18 @@ export default function HeroSection() {
             {/* Sub heading with full content */}
             <div className="space-y-2 max-w-2xl">
               {slide.h2 ? (
-                <h3 className="text-sm sm:text-base md:text-lg text-black font-normal leading-relaxed">
+                <h3 className="text-base sm:text-lg md:text-lg lg:text-lg text-black font-normal leading-relaxed">
                   {slide.h3}
                 </h3>
               ) : (
-                <h4 className="text-sm sm:text-base md:text-lg text-black font-normal leading-relaxed">
+                <h4 className="text-base sm:text-lg md:text-lg lg:text-lg text-black font-normal leading-relaxed">
                   {slide.h4}
                 </h4>
               )}
 
               {/* Optional h4 for third slide */}
               {slide.h2 && slide.h4 && (
-                <h4 className="text-xs sm:text-sm md:text-base text-black/80 font-normal leading-relaxed italic">
+                <h4 className="text-sm sm:text-base md:text-base lg:text-base text-black/80 font-normal leading-relaxed italic">
                   {slide.h4}
                 </h4>
               )}
@@ -247,7 +194,7 @@ export default function HeroSection() {
             {/* Reserve button */}
             {slide.showButton && (
               <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full pt-1">
-                <Link href="/reservar">
+                <Link href="/servicios">
                   <Button className="text-sm sm:text-base md:text-lg px-5 py-3 sm:px-6 sm:py-4 md:px-8 md:py-5 lg:px-10 lg:py-6 rounded-full bg-white text-[#2c1e21] hover:bg-[#d63d7a] hover:text-white transition-all font-montserrat font-semibold">
                     Reserva tu cita
                   </Button>

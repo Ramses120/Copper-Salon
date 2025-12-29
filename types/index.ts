@@ -50,15 +50,21 @@ export interface BookingService {
 }
 
 export interface Promotion {
-  id: string;
-  titulo: string;
-  descripcion: string;
-  descuento: number;
-  tipo: "porcentaje" | "fijo";
-  fechaInicio: Date | string;
-  fechaFin: Date | string;
-  activa: boolean;
-  servicios?: PromotionService[];
+  id: number;
+  name: string;
+  description: string | null;
+  special_price: number | null;
+  duration_minutes: number | null;
+  is_active: boolean;
+  priority: number;
+  valid_from: string | null;
+  valid_until: string | null;
+  image_url: string | null;
+  show_on_site: boolean;
+  created_at: string;
+  updated_at: string;
+  discount?: number;
+  type?: string;
 }
 
 export interface PromotionService {

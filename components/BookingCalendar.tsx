@@ -59,90 +59,101 @@ export default function BookingCalendar({
   const [staffList, setStaffList] = useState<Array<{ id: string; name: string }>>([]);
   const [loading, setLoading] = useState(true);
 
-  // Cargar reservas
-  useEffect(() => {
-    fetchBookings();
-    // Refrescar cada 30 segundos
-    const interval = setInterval(fetchBookings, 30000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Aplicar filtros cuando cambien
-  useEffect(() => {
-    applyFilters();
-  }, [bookings, searchTerm, statusFilter, staffFilter, selectedDate]);
+  // Helper to format date to YYYY-MM-DD in local time
+  const formatDateToLocalISO = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
 
   const fetchBookings = async () => {
     try {
       const response = await fetch("/api/bookings");
-      const data = await response.json();
-
       if (response.ok) {
-        setBookings(data.bookings || []);
+        const result = await response.json();
+        // La API devuelve { bookings: [...] }
+        const rawBookings = result.bookings || [];
+        
+        // Mapear los datos de Supabase a la interfaz Booking del componente
+        const mappedBookings = rawBookings.map((b: any) => ({
+          id: b.id,
+          clientName: b.customer?.name || "Cliente Desconocido",
+          clientPhone: b.customer?.phone || "",
+          clientEmail: b.customer?.email || "",
+          date: b.booking_date, // Supabase devuelve YYYY-MM-DD
+          startTime: b.start_time, // Supabase devuelve HH:MM:SS
+          status: b.status,
+          staff: {
+            name: b.staff?.name || "Sin asignar",
+          },
+          services: b.services || [],
+        }));
+
+        setBookings(mappedBookings);
+        
+        // Actualizar lista de estilistas basada en las reservas
+        const uniqueStaff = Array.from(
+          new Set(mappedBookings.map((b: Booking) => b.staff.name))
+        ).map((name, index) => ({ id: `staff-${index}`, name: name as string }));
+        setStaffList(uniqueStaff);
       }
     } catch (error) {
       console.error("Error fetching bookings:", error);
+      setBookings([]); // Fallback a array vacío en caso de error
     } finally {
       setLoading(false);
     }
   };
 
-  // Obtener lista de estilistas
+  // Cargar reservas
   useEffect(() => {
-    const uniqueStaff = Array.from(
-      new Set(bookings.map((b) => JSON.stringify({ id: b.id, name: b.staff.name })))
-    )
-      .map((s) => JSON.parse(s))
-      .slice(0, 20); // Limitar a 20 estilistas únicos
+    fetchBookings();
+    // Refrescar cada 10 segundos para mantener la información actualizada
+    const interval = setInterval(fetchBookings, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
-    const staffMap = new Map<string, string>();
-    bookings.forEach((booking) => {
-      staffMap.set(booking.staff.name, booking.staff.name);
-    });
+  // Aplicar filtros cuando cambien
+  useEffect(() => {
+    const applyFilters = () => {
+      let filtered = bookings.filter((booking) => {
+        // Filtro de fecha
+        // Comparar strings YYYY-MM-DD directamente para evitar problemas de zona horaria
+        const formattedSelectedDate = formatDateToLocalISO(selectedDate);
+        const isDateMatch = booking.date === formattedSelectedDate;
+  
+        if (!isDateMatch) return false;
+  
+        // Filtro de búsqueda
+        const searchLower = searchTerm.toLowerCase();
+        const matchesSearch =
+          booking.clientName.toLowerCase().includes(searchLower) ||
+          booking.clientPhone.includes(searchLower) ||
+          booking.clientEmail.toLowerCase().includes(searchLower) ||
+          booking.staff.name.toLowerCase().includes(searchLower);
+  
+        if (!matchesSearch) return false;
+  
+        // Filtro de estado
+        if (statusFilter !== "all" && booking.status !== statusFilter)
+          return false;
+  
+        // Filtro de estilista
+        if (
+          staffFilter !== "all" &&
+          booking.staff.name !== staffFilter
+        )
+          return false;
+  
+        return true;
+      });
+  
+      setFilteredBookings(filtered);
+    };
 
-    setStaffList(
-      Array.from(staffMap.entries()).map(([name]) => ({
-        id: name,
-        name: name,
-      }))
-    );
-  }, [bookings]);
-
-  const applyFilters = () => {
-    let filtered = bookings.filter((booking) => {
-      // Filtro de fecha
-      const bookingDate = new Date(booking.date);
-      const isDateMatch =
-        bookingDate.toDateString() === selectedDate.toDateString();
-
-      if (!isDateMatch) return false;
-
-      // Filtro de búsqueda
-      const searchLower = searchTerm.toLowerCase();
-      const matchesSearch =
-        booking.clientName.toLowerCase().includes(searchLower) ||
-        booking.clientPhone.includes(searchLower) ||
-        booking.clientEmail.toLowerCase().includes(searchLower) ||
-        booking.staff.name.toLowerCase().includes(searchLower);
-
-      if (!matchesSearch) return false;
-
-      // Filtro de estado
-      if (statusFilter !== "all" && booking.status !== statusFilter)
-        return false;
-
-      // Filtro de estilista
-      if (
-        staffFilter !== "all" &&
-        booking.staff.name !== staffFilter
-      )
-        return false;
-
-      return true;
-    });
-
-    setFilteredBookings(filtered);
-  };
+    applyFilters();
+  }, [bookings, searchTerm, statusFilter, staffFilter, selectedDate]);
 
   const getStatusBadge = (estado: string) => {
     switch (estado) {
@@ -194,8 +205,9 @@ export default function BookingCalendar({
 
   // Contar reservas por día
   const tileContent = ({ date }: { date: Date }) => {
+    const formattedDate = formatDateToLocalISO(date);
     const count = bookings.filter(
-      (b) => new Date(b.date).toDateString() === date.toDateString()
+      (b) => b.date === formattedDate
     ).length;
 
     if (count === 0) return null;
@@ -211,6 +223,7 @@ export default function BookingCalendar({
 
   const stats = getBookingsByStatus();
 
+  // Renderizar siempre el contenido, pero con loading state
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">

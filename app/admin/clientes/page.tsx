@@ -19,12 +19,10 @@ interface Customer {
   id: string;
   name: string;
   phone: string;
-  email?: string;
-  address?: string;
-  city?: string;
   notes?: string;
   active: boolean;
   created_at: string;
+  updated_at?: string;
 }
 
 export default function AdminClientesPage() {
@@ -49,11 +47,19 @@ export default function AdminClientesPage() {
   const fetchCustomers = async () => {
     try {
       setLoading(true);
+      console.log("[Admin] Cargando clientes...");
+      
       const response = await fetch("/api/customers");
       const data = await response.json();
-      setCustomers(Array.isArray(data) ? data : data.customers || []);
+      
+      console.log("[Admin] Respuesta de /api/customers:", { status: response.status, data });
+      
+      // Las nuevas APIs devuelven un array directamente
+      setCustomers(Array.isArray(data) ? data : []);
+      console.log("[Admin] Clientes cargados:", Array.isArray(data) ? data.length : 0);
     } catch (error) {
-      console.error("Error fetching customers:", error);
+      console.error("[Admin] Error fetching customers:", error);
+      setCustomers([]);
     } finally {
       setLoading(false);
     }
@@ -84,17 +90,31 @@ export default function AdminClientesPage() {
       return;
     }
 
+    // Check for duplicate phone if creating new customer
+    if (!editingCustomer) {
+      const existing = customers.find(c => c.phone === formData.phone);
+      if (existing) {
+        alert(`El cliente ya existe: ${existing.name} (${existing.phone})`);
+        return;
+      }
+    }
+
     try {
       const url = editingCustomer
         ? `/api/customers/${editingCustomer.id}`
         : "/api/customers";
       const method = editingCustomer ? "PATCH" : "POST";
 
+      console.log("[Admin] Guardando cliente:", { method, url, formData });
+
       const response = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       });
+
+      const responseData = await response.json();
+      console.log("[Admin] Respuesta del servidor:", { status: response.status, data: responseData });
 
       if (response.ok) {
         alert(editingCustomer ? "Cliente actualizado" : "Cliente creado");
@@ -106,10 +126,14 @@ export default function AdminClientesPage() {
           notes: "",
         });
         fetchCustomers();
+      } else {
+        const errorMsg = responseData?.error || "Error desconocido";
+        const errorDetails = responseData?.details || "";
+        alert(`Error: ${errorMsg}${errorDetails ? " - " + errorDetails : ""}`);
       }
     } catch (error) {
-      console.error("Error saving customer:", error);
-      alert("Error al guardar cliente");
+      console.error("[Admin] Error saving customer:", error);
+      alert(`Error al guardar cliente: ${error instanceof Error ? error.message : "Error desconocido"}`);
     }
   };
 

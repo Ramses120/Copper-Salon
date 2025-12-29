@@ -1,83 +1,9 @@
 import { supabase } from './supabaseClient'
 
 export const db = {
-  admin: {
-    findUnique: async ({ where }: any) => {
-      let query = supabase.from('admins').select('*')
-      if (where.id) query = query.eq('id', where.id)
-      if (where.email) query = query.eq('email', where.email)
-      const { data, error } = await query.single()
-      if (error) throw error
-      return data ? {
-        id: data.id?.toString(),
-        email: data.email,
-        password: data.password,
-        name: data.name,
-        rol: data.rol,
-        permisos: data.permisos,
-        activo: data.activo
-      } : null
-    },
-    findMany: async ({ where, orderBy }: any = {}) => {
-      let query = supabase.from('admins').select('*')
-      if (where?.activo !== undefined) query = query.eq('activo', where.activo)
-      if (orderBy) {
-        const field = Object.keys(orderBy)[0]
-        const direction = orderBy[field] === 'asc'
-        query = query.order(field, { ascending: direction })
-      }
-      const { data, error } = await query
-      if (error) throw error
-      return data?.map(d => ({
-        id: d.id?.toString(),
-        email: d.email,
-        password: d.password,
-        name: d.name,
-        rol: d.rol,
-        permisos: d.permisos,
-        activo: d.activo
-      })) || []
-    },
-    create: async ({ data }: any) => {
-      const { data: result, error } = await supabase
-        .from('admins')
-        .insert({
-          name: data.name,
-          email: data.email,
-          password: data.password,
-          rol: data.rol,
-          permisos: data.permisos,
-          activo: data.activo
-        })
-        .select()
-        .single()
-      if (error) throw error
-      return result
-    },
-    update: async ({ where, data }: any) => {
-      const updateData: any = {
-        name: data.name,
-        email: data.email,
-        rol: data.rol,
-        permisos: data.permisos,
-        activo: data.activo
-      }
-      if (data.password) {
-        updateData.password = data.password
-      }
-      const { data: result, error } = await supabase
-        .from('admins')
-        .update(updateData)
-        .eq('id', where.id)
-        .select()
-        .single()
-      if (error) throw error
-      return result
-    },
-  },
   category: {
     findMany: async ({ where, orderBy }: any = {}) => {
-      let query = supabase.from('service_categories').select('*')
+      let query = supabase.from('categories').select('*')
       if (where?.active !== undefined) query = query.eq('active', where.active)
       if (orderBy) {
         const field = Object.keys(orderBy)[0]
@@ -96,7 +22,7 @@ export const db = {
     },
     create: async ({ data }: any) => {
       const { data: result, error } = await supabase
-        .from('service_categories')
+        .from('categories')
         .insert({
           name: data.name,
           description: data.description,
@@ -127,8 +53,9 @@ export const db = {
         description: d.description,
         price: d.price,
         duration: d.duration_minutes,
-        category: d.category,
-        categoryId: d.category,
+        category: d.category_id, // Fixed: use category_id column
+        categoryId: d.category_id, // Fixed: use category_id column
+        category_id: d.category_id, // Added for compatibility
         active: d.active
       })) || []
     },
@@ -280,211 +207,237 @@ export const db = {
   },
   booking: {
     findMany: async ({ where, include, orderBy }: any = {}) => {
-      let query = supabase.from('appointments').select('*, team_members(*)')
+      let query = supabase.from('bookings').select(`
+        *,
+        customer:customers(*),
+        staff:staff(*),
+        services:booking_services(
+          service:services(*)
+        )
+      `)
+      
       if (where?.status) {
         if (where.status.in) query = query.in('status', where.status.in)
         else query = query.eq('status', where.status)
       }
-      if (where?.date) query = query.eq('date', where.date.toISOString().split('T')[0])
-      if (where?.staffId) query = query.eq('stylist_id', where.staffId)
+      if (where?.date) {
+         if (where.date.gte || where.date.lte) {
+             if (where.date.gte) {
+                 const dateStr = where.date.gte instanceof Date ? where.date.gte.toISOString().split('T')[0] : where.date.gte;
+                 query = query.gte('booking_date', dateStr)
+             }
+             if (where.date.lte) {
+                 const dateStr = where.date.lte instanceof Date ? where.date.lte.toISOString().split('T')[0] : where.date.lte;
+                 query = query.lte('booking_date', dateStr)
+             }
+         } else {
+             const dateStr = where.date instanceof Date ? where.date.toISOString().split('T')[0] : where.date;
+             query = query.eq('booking_date', dateStr)
+         }
+      }
+      if (where?.staffId) query = query.eq('staff_id', where.staffId)
+      
       if (orderBy) {
         for (const order of (Array.isArray(orderBy) ? orderBy : [orderBy])) {
           const field = Object.keys(order)[0]
+          const dbField = field === 'date' ? 'booking_date' : field;
           const direction = order[field] === 'asc'
-          query = query.order(field, { ascending: direction })
+          query = query.order(dbField, { ascending: direction })
         }
       }
+      
       const { data, error } = await query
       if (error) throw error
       
-      if (include?.services) {
-        // Fetch services for all bookings
-        const appointmentIds = data?.map((d: any) => d.id?.toString()) || []
-        if (appointmentIds.length > 0) {
-          const { data: appServices } = await supabase
-            .from('appointment_services')
-            .select('*, services(*)')
-            .in('appointment_id', appointmentIds)
-          
-          const servicesMap = new Map<string, any[]>()
-          appServices?.forEach((as: any) => {
-            if (!servicesMap.has(as.appointment_id?.toString())) {
-              servicesMap.set(as.appointment_id?.toString(), [])
-            }
-            servicesMap.get(as.appointment_id?.toString())!.push({
-              id: as.id?.toString(),
-              bookingId: as.appointment_id?.toString(),
-              serviceId: as.service_id?.toString(),
-              service: as.services ? {
-                id: as.services.id?.toString(),
-                name: as.services.name,
-                price: as.services.price,
-                duration: as.services.duration_minutes
-              } : null
-            })
-          })
-          
-          return data?.map(d => ({
-            id: d.id?.toString(),
-            clientName: d.client_name,
-            clientPhone: d.phone,
-            clientEmail: d.email,
-            date: new Date(d.date),
-            startTime: d.start_time,
-            endTime: d.end_time,
-            status: d.status,
-            notes: d.notes,
-            staffId: d.stylist_id?.toString(),
-            staff: d.team_members ? {
-              id: d.team_members.id?.toString(),
-              name: d.team_members.name
-            } : null,
-            services: servicesMap.get(d.id?.toString()) || []
-          })) || []
-        }
-      }
-      
-      return data?.map(d => ({
+      return data?.map((d: any) => ({
         id: d.id?.toString(),
-        clientName: d.client_name,
-        clientPhone: d.phone,
-        clientEmail: d.email,
-        date: new Date(d.date),
+        clientName: d.customer?.name || 'Cliente Desconocido',
+        clientPhone: d.customer?.phone || '',
+        clientEmail: d.customer?.email || '',
+        date: new Date(d.booking_date),
         startTime: d.start_time,
         endTime: d.end_time,
         status: d.status,
         notes: d.notes,
-        staffId: d.stylist_id?.toString(),
-        staff: d.team_members ? {
-          id: d.team_members.id?.toString(),
-          name: d.team_members.name
-        } : null
+        staffId: d.staff_id?.toString(),
+        staff: d.staff ? {
+          id: d.staff.id?.toString(),
+          name: d.staff.name
+        } : null,
+        services: d.services?.map((bs: any) => ({
+            id: bs.id?.toString(),
+            bookingId: bs.booking_id?.toString(),
+            serviceId: bs.service_id?.toString(),
+            service: bs.service ? {
+              id: bs.service.id?.toString(),
+              name: bs.service.name,
+              price: bs.service.price,
+              duration: bs.service.duration_minutes
+            } : null
+        })) || []
       })) || []
     },
     findUnique: async ({ where, include }: any) => {
       const { data, error } = await supabase
-        .from('appointments')
-        .select('*, team_members(*)')
+        .from('bookings')
+        .select(`
+          *,
+          customer:customers(*),
+          staff:staff(*),
+          services:booking_services(
+            service:services(*)
+          )
+        `)
         .eq('id', where.id)
         .single()
       if (error) throw error
       
-      const booking = data ? {
+      return data ? {
         id: data.id?.toString(),
-        clientName: data.client_name,
-        clientPhone: data.phone,
-        clientEmail: data.email,
-        date: new Date(data.date),
+        clientName: data.customer?.name || 'Cliente Desconocido',
+        clientPhone: data.customer?.phone || '',
+        clientEmail: data.customer?.email || '',
+        date: new Date(data.booking_date),
         startTime: data.start_time,
         endTime: data.end_time,
         status: data.status,
         notes: data.notes,
-        staffId: data.stylist_id?.toString(),
-        staff: data.team_members ? {
-          id: data.team_members.id?.toString(),
-          name: data.team_members.name
-        } : null
-      } : null
-      
-      if (booking && include?.services) {
-        const { data: appointmentServices, error: asError } = await supabase
-          .from('appointment_services')
-          .select('*, services(*)')
-          .eq('appointment_id', where.id)
-        
-        if (!asError) {
-          (booking as any).services = appointmentServices?.map((as: any) => ({
-            id: as.id?.toString(),
-            bookingId: as.appointment_id?.toString(),
-            serviceId: as.service_id?.toString(),
-            service: as.services ? {
-              id: as.services.id?.toString(),
-              name: as.services.name,
-              price: as.services.price,
-              duration: as.services.duration_minutes
+        staffId: data.staff_id?.toString(),
+        staff: data.staff ? {
+          id: data.staff.id?.toString(),
+          name: data.staff.name
+        } : null,
+        services: data.services?.map((bs: any) => ({
+            id: bs.id?.toString(),
+            bookingId: bs.booking_id?.toString(),
+            serviceId: bs.service_id?.toString(),
+            service: bs.service ? {
+              id: bs.service.id?.toString(),
+              name: bs.service.name,
+              price: bs.service.price,
+              duration: bs.service.duration_minutes
             } : null
-          })) || []
-        } else {
-          (booking as any).services = []
-        }
-      } else if (booking) {
-        (booking as any).services = []
-      }
-      
-      return booking
+        })) || []
+      } : null
     },
     create: async ({ data, include }: any) => {
       const { services, ...bookingData } = data
+      
+      let customerId = bookingData.customerId;
+      if (!customerId && bookingData.clientPhone) {
+          const { data: customer } = await supabase.from('customers').select('id').eq('phone', bookingData.clientPhone).single();
+          if (customer) customerId = customer.id;
+          else {
+              const { data: newCustomer } = await supabase.from('customers').insert({
+                  name: bookingData.clientName,
+                  phone: bookingData.clientPhone,
+                  email: bookingData.clientEmail
+              }).select().single();
+              customerId = newCustomer?.id;
+          }
+      }
+
       const { data: result, error } = await supabase
-        .from('appointments')
+        .from('bookings')
         .insert({
-          client_name: bookingData.clientName,
-          phone: bookingData.clientPhone,
-          email: bookingData.clientEmail,
-          date: bookingData.date,
+          customer_id: customerId,
+          booking_date: bookingData.date,
           start_time: bookingData.startTime,
           end_time: bookingData.endTime,
           status: bookingData.status,
           notes: bookingData.notes,
-          stylist_id: bookingData.staffId
+          staff_id: bookingData.staffId
         })
         .select()
         .single()
       if (error) throw error
+      
       if (services?.create) {
-        const appointmentServices = services.create.map((s: any) => ({
-          appointment_id: result.id,
+        const bookingServices = services.create.map((s: any) => ({
+          booking_id: result.id,
           service_id: s.serviceId,
         }))
-        await supabase.from('appointment_services').insert(appointmentServices)
+        await supabase.from('booking_services').insert(bookingServices)
       }
       return result
     },
     update: async ({ where, data }: any) => {
+      const updateFields: any = {};
+      if (data.status) updateFields.status = data.status;
+      if (data.notes !== undefined) updateFields.notes = data.notes;
+      if (data.date) updateFields.booking_date = data.date instanceof Date ? data.date.toISOString().split('T')[0] : data.date;
+      if (data.startTime) updateFields.start_time = data.startTime;
+      if (data.endTime) updateFields.end_time = data.endTime;
+      if (data.staffId) updateFields.staff_id = data.staffId;
+      
       const { data: result, error } = await supabase
-        .from('appointments')
-        .update({
-          client_name: data.clientName,
-          phone: data.clientPhone,
-          email: data.clientEmail,
-          status: data.status,
-          notes: data.notes
-        })
+        .from('bookings')
+        .update(updateFields)
         .eq('id', where.id)
         .select()
         .single()
       if (error) throw error
+      
+      // Handle customer update if provided
+      if (data.clientName || data.clientPhone) {
+          const { data: booking } = await supabase.from('bookings').select('customer_id').eq('id', where.id).single();
+          if (booking?.customer_id) {
+              const customerUpdate: any = {};
+              if (data.clientName) customerUpdate.name = data.clientName;
+              if (data.clientPhone) customerUpdate.phone = data.clientPhone;
+              if (data.clientEmail !== undefined) customerUpdate.email = data.clientEmail;
+              
+              await supabase.from('customers').update(customerUpdate).eq('id', booking.customer_id);
+          }
+      }
+      
       return result
     },
     delete: async ({ where }: any) => {
       const { error } = await supabase
-        .from('appointments')
+        .from('bookings')
         .delete()
         .eq('id', where.id)
       if (error) throw error
     },
     count: async ({ where }: any) => {
-      let query = supabase.from('appointments').select('id', { count: 'exact', head: true })
+      let query = supabase.from('bookings').select('id', { count: 'exact', head: true })
       if (where?.status) {
         if (where.status.in) query = query.in('status', where.status.in)
         else query = query.eq('status', where.status)
       }
-      if (where?.date) query = query.eq('date', where.date.toISOString().split('T')[0])
-      if (where?.staffId) query = query.eq('stylist_id', where.staffId)
+      if (where?.date) {
+         if (where.date.gte || where.date.lte) {
+             if (where.date.gte) {
+                 const dateStr = where.date.gte instanceof Date ? where.date.gte.toISOString().split('T')[0] : where.date.gte;
+                 query = query.gte('booking_date', dateStr)
+             }
+             if (where.date.lte) {
+                 const dateStr = where.date.lte instanceof Date ? where.date.lte.toISOString().split('T')[0] : where.date.lte;
+                 query = query.lte('booking_date', dateStr)
+             }
+         } else {
+             const dateStr = where.date instanceof Date ? where.date.toISOString().split('T')[0] : where.date;
+             query = query.eq('booking_date', dateStr)
+         }
+      }
+      if (where?.staffId) query = query.eq('staff_id', where.staffId)
       const { count, error } = await query
       if (error) throw error
       return count || 0
     },
     groupBy: async ({ by, where, _count }: any) => {
-      let query = supabase.from('appointments').select('status')
-      if (where?.date?.gte) {
-        const dateStr = where.date.gte.toISOString().split('T')[0]
-        query = query.gte('date', dateStr)
+      let query = supabase.from('bookings').select('status')
+      if (where?.date) {
+         if (where.date.gte) {
+            const dateStr = where.date.gte instanceof Date ? where.date.gte.toISOString().split('T')[0] : where.date.gte;
+            query = query.gte('booking_date', dateStr)
+         }
+         // Add other date filters if needed for groupBy
       }
       const { data, error } = await query
       if (error) throw error
       
-      // Group by status
       const grouped = new Map<string, number>()
       data?.forEach((row: any) => {
         const status = row.status
@@ -493,14 +446,14 @@ export const db = {
       
       return Array.from(grouped.entries()).map(([status, count]) => ({
         status,
-        _count: { id: count }
+        _count: { _all: count }
       }))
     },
   },
   bookingService: {
     findMany: async ({ where, include }: any = {}) => {
-      let query = supabase.from('appointment_services').select('*')
-      if (where?.bookingId) query = query.eq('appointment_id', where.bookingId)
+      let query = supabase.from('booking_services').select('*')
+      if (where?.bookingId) query = query.eq('booking_id', where.bookingId)
       const { data, error } = await query
       if (error) throw error
       if (include?.service && data) {
@@ -512,7 +465,7 @@ export const db = {
         const serviceMap = new Map(services?.map((s: any) => [s.id, s]) || [])
         return data.map((d: any) => ({
           id: d.id?.toString(),
-          bookingId: d.appointment_id?.toString(),
+          bookingId: d.booking_id?.toString(),
           serviceId: d.service_id?.toString(),
           service: serviceMap.get(d.service_id) ? {
             id: serviceMap.get(d.service_id).id?.toString(),
@@ -523,16 +476,16 @@ export const db = {
       }
       return data?.map((d: any) => ({
         id: d.id?.toString(),
-        bookingId: d.appointment_id?.toString(),
+        bookingId: d.booking_id?.toString(),
         serviceId: d.service_id?.toString(),
         service: null
       })) || []
     },
     create: async ({ data }: any) => {
       const { data: result, error } = await supabase
-        .from('appointment_services')
+        .from('booking_services')
         .insert({
-          appointment_id: data.bookingId,
+          booking_id: data.bookingId,
           service_id: data.serviceId,
         })
         .select()
@@ -542,7 +495,7 @@ export const db = {
     },
     delete: async ({ where }: any) => {
       const { error } = await supabase
-        .from('appointment_services')
+        .from('booking_services')
         .delete()
         .eq('id', where.id)
       if (error) throw error
@@ -625,6 +578,108 @@ export const db = {
     delete: async ({ where }: any) => {
       const { error } = await supabase
         .from('portfolio_images')
+        .delete()
+        .eq('id', where.id)
+      if (error) throw error
+    },
+  },
+  customer: {
+    findMany: async ({ where, orderBy }: any = {}) => {
+      let query = supabase.from('customers').select('*')
+      if (where?.active !== undefined) query = query.eq('active', where.active)
+      if (where?.phone) query = query.eq('phone', where.phone)
+      if (orderBy) {
+        const field = Object.keys(orderBy)[0]
+        const direction = orderBy[field] === 'asc'
+        query = query.order(field, { ascending: direction })
+      }
+      const { data, error } = await query
+      if (error) throw error
+      return data?.map(d => ({
+        id: d.id?.toString(),
+        name: d.name,
+        phone: d.phone,
+        notes: d.notes || '',
+        active: d.active,
+        created_at: d.created_at,
+        updated_at: d.updated_at
+      })) || []
+    },
+    findUnique: async ({ where }: any) => {
+      const { data, error } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('id', where.id)
+        .single()
+      if (error) throw error
+      return data ? {
+        id: data.id?.toString(),
+        name: data.name,
+        phone: data.phone,
+        notes: data.notes || '',
+        active: data.active,
+        created_at: data.created_at,
+        updated_at: data.updated_at
+      } : null
+    },
+    create: async ({ data }: any) => {
+      console.log("[db.customer.create] Inserting customer:", { name: data.name, phone: data.phone });
+      
+      const { data: result, error } = await supabase
+        .from('customers')
+        .insert({
+          name: data.name,
+          phone: data.phone,
+          notes: data.notes || '',
+          active: true
+        })
+        .select()
+        .single()
+      
+      if (error) {
+        console.error("[db.customer.create] Supabase error:", error);
+        throw new Error(`Supabase insert error: ${error.message}`);
+      }
+      
+      console.log("[db.customer.create] Customer inserted successfully:", result);
+      
+      return {
+        id: result.id?.toString(),
+        name: result.name,
+        phone: result.phone,
+        notes: result.notes || '',
+        active: result.active,
+        created_at: result.created_at,
+        updated_at: result.updated_at
+      }
+    },
+    update: async ({ where, data }: any) => {
+      const updateData: any = {}
+      if (data.name) updateData.name = data.name
+      if (data.phone) updateData.phone = data.phone
+      if (data.notes !== undefined) updateData.notes = data.notes
+      if (data.active !== undefined) updateData.active = data.active
+
+      const { data: result, error } = await supabase
+        .from('customers')
+        .update(updateData)
+        .eq('id', where.id)
+        .select()
+        .single()
+      if (error) throw error
+      return {
+        id: result.id?.toString(),
+        name: result.name,
+        phone: result.phone,
+        notes: result.notes || '',
+        active: result.active,
+        created_at: result.created_at,
+        updated_at: result.updated_at
+      }
+    },
+    delete: async ({ where }: any) => {
+      const { error } = await supabase
+        .from('customers')
         .delete()
         .eq('id', where.id)
       if (error) throw error

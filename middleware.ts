@@ -1,11 +1,6 @@
 // Middleware para proteger rutas de administración
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { jwtVerify } from "jose";
-
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || "copper-beauty-salon-secret-key-2025"
-);
 
 // Rutas públicas que no requieren autenticación
 const PUBLIC_PATHS = [
@@ -18,12 +13,14 @@ const PUBLIC_PATHS = [
 ];
 
 const PUBLIC_API_PATHS = [
-  "/api/auth",
+  "/api/auth/login",
+  "/api/auth/setup",
   "/api/bookings",
   "/api/availability",
   "/api/staff",
   "/api/services",
   "/api/categories",
+  "/api/promotions/active",
 ];
 
 function isPublicPath(pathname: string): boolean {
@@ -47,38 +44,24 @@ export async function middleware(request: NextRequest) {
 
   // Rutas de administración protegidas
   if (pathname.startsWith("/admin")) {
-    const token = request.cookies.get("auth-token");
+    const accessToken = request.cookies.get("sb-access-token");
 
-    if (!token) {
+    if (!accessToken) {
       return NextResponse.redirect(new URL("/admin/login", request.url));
     }
 
-    try {
-      await jwtVerify(token.value, JWT_SECRET);
-      return NextResponse.next();
-    } catch (error) {
-      const response = NextResponse.redirect(
-        new URL("/admin/login", request.url)
-      );
-      response.cookies.delete("auth-token");
-      return response;
-    }
+    return NextResponse.next();
   }
 
   // APIs protegidas (excluyendo públicas)
   if (pathname.startsWith("/api")) {
-    const token = request.cookies.get("auth-token");
+    const accessToken = request.cookies.get("sb-access-token");
 
-    if (!token) {
+    if (!accessToken) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    try {
-      await jwtVerify(token.value, JWT_SECRET);
-      return NextResponse.next();
-    } catch (error) {
-      return NextResponse.json({ error: "Token inválido" }, { status: 401 });
-    }
+    return NextResponse.next();
   }
 
   return NextResponse.next();

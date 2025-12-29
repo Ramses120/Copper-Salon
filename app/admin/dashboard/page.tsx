@@ -33,6 +33,15 @@ const COLORS = {
   cancelada: "#EF4444",
 };
 
+const formatTime12Hour = (time24: string) => {
+  if (!time24) return "";
+  const [hours, minutes] = time24.split(":");
+  const h = parseInt(hours, 10);
+  const ampm = h >= 12 ? "PM" : "AM";
+  const h12 = h % 12 || 12;
+  return `${h12}:${minutes} ${ampm}`;
+};
+
 export default function AdminDashboardPage() {
   const [stats, setStats] = useState({});
   const [recentBookings, setRecentBookings] = useState<any[]>([]);
@@ -105,26 +114,22 @@ export default function AdminDashboardPage() {
     value: count as number,
   }));
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <div className="animate-pulse text-gray-500">Cargando estadísticas...</div>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="font-times text-3xl font-bold text-gray-900 mb-2">
-          Dashboard
-        </h1>
-        <p className="text-gray-600">
-          Bienvenido al panel de administración de Copper Beauty Salon & Spa
-        </p>
-      </div>
-
-
+      {loading ? (
+        <div className="flex items-center justify-center h-96">
+          <div className="animate-pulse text-gray-500">Cargando estadísticas...</div>
+        </div>
+      ) : (
+        <>
+          <div>
+            <h1 className="font-times text-3xl font-bold text-gray-900 mb-2">
+              Dashboard
+            </h1>
+            <p className="text-gray-600">
+              Bienvenido al panel de administración de Copper Beauty Salon & Spa
+            </p>
+          </div>
 
       {/* Charts */}
       {pieData.length > 0 && (
@@ -239,6 +244,9 @@ export default function AdminDashboardPage() {
                         <p className="font-medium text-gray-900">
                           {booking.cliente}
                         </p>
+                        <p className="text-xs text-gray-500">
+                          {booking.telefono}
+                        </p>
                       </td>
                       <td className="py-3 px-4 text-gray-600">
                         {booking.servicio}
@@ -249,7 +257,7 @@ export default function AdminDashboardPage() {
                       <td className="py-3 px-4 text-gray-600">
                         {booking.fecha}
                       </td>
-                      <td className="py-3 px-4 text-gray-600">{booking.hora}</td>
+                      <td className="py-3 px-4 text-gray-600">{formatTime12Hour(booking.hora)}</td>
                       <td className="py-3 px-4">
                         {getStatusBadge(booking.estado)}
                       </td>
@@ -317,6 +325,8 @@ export default function AdminDashboardPage() {
           </Card>
         </a>
       </div>
+      </>
+      )}
     </div>
   );
 }

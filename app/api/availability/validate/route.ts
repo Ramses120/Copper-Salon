@@ -19,13 +19,19 @@ export async function POST(request: Request) {
     const { staffId, date, startTime, endTime, excludeBookingId } =
       (await request.json()) as AvailabilityRequest;
 
-    if (!staffId || !date || !startTime || !endTime) {
+    if (!staffId || !date || !startTime) {
       return NextResponse.json(
         { error: "Faltan parámetros requeridos" },
         { status: 400 }
       );
     }
 
+    /*
+    // RESTRICTIONS REMOVED BY USER REQUEST:
+    // 1. Stylist schedule check
+    // 2. Overlapping booking check
+    // 3. Working hours check
+    
     // 1. Validar que el estilista tiene horario ese día
     const dayOfWeek = new Date(`${date}T00:00:00`).getDay();
     const { data: schedules, error: scheduleError } = await supabase
@@ -107,13 +113,14 @@ export async function POST(request: Request) {
         { status: 200 }
       );
     }
+    */
 
-    // 4. Todo está disponible
+    // 4. Todo está disponible (Always return true)
     return NextResponse.json(
       {
         available: true,
         message: "El horario está disponible",
-        staffSchedule: { start: staffStartTime, end: staffEndTime },
+        // staffSchedule: { start: staffStartTime, end: staffEndTime }, // Removed as we don't fetch it
       },
       { status: 200 }
     );

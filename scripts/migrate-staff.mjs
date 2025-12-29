@@ -63,8 +63,8 @@ async function migrateStaff() {
 
     console.log('\n✅ Migración completada exitosamente!');
     console.log('\n📝 Próximos pasos:');
-    console.log('1. Ejecuta: npx prisma db push');
-    console.log('2. El schema Prisma se sincronizará con Supabase');
+    console.log('1. Verifica la estructura en Supabase');
+    console.log('2. Asegúrate de que la columna specialties exista');
     console.log('3. Inicia el servidor: npm run dev');
 
   } catch (error) {

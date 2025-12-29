@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -113,8 +112,7 @@ export default function ContactoPage() {
   ];
 
   return (
-    <main className="min-h-screen bg-copper-gradient">
-      <Header />
+    <main className="min-h-screen bg-copper-gradient pt-24 lg:pt-32">
 
       {/* Hero Section */}
       <section className="pt-32 pb-12">

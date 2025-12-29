@@ -1,590 +1,382 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import Header from "@/components/Header";
+import { useEffect, useState } from "react";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Clock, Sparkles, X, Loader2, ChevronDown } from "lucide-react";
+import { Clock, Loader2, ChevronDown, Sparkles, Tag } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabaseClient";
-import { formatPrice } from "@/lib/utils";
+import { motion, AnimatePresence } from "framer-motion";
 
-// Mock data - esto se cargará de la base de datos en producción
-const servicesData = [
-  {
-    id: "hairstyle",
-    name: "CABELLO",
-    description: "Cortes, color, balayage y tratamientos profesionales",
-    image: "https://images.unsplash.com/photo-1562322140-8baeececf3df?q=80&w=2069",
-    services: [
-      {
-        id: "1",
-        name: "Corte + Estilo",
-        description: "Corte profesional con blowout incluido para un acabado perfecto",
-        price: 45,
-        duration: 45,
-        note: "Incluye blowout",
-      },
-      {
-        id: "2",
-        name: "Color Completo",
-        description: "Coloración completa del cabello con productos premium",
-        price: 120,
-        duration: 120,
-      },
-      {
-        id: "3",
-        name: "Balayage Signature",
-        description: "Técnica de balayage pintado a mano con tonalizante incluido",
-        price: 220,
-        duration: 180,
-        note: "Tonalizante incluido",
-      },
-      {
-        id: "4",
-        name: "Keratina / Alisado",
-        description: "Tratamiento de keratina para cabello liso y manejable",
-        price: 260,
-        duration: 150,
-      },
-    ],
-  },
-  {
-    id: "nails",
-    name: "UÑAS",
-    description: "Manicure, pedicure y diseños de uñas",
-    image: "https://images.unsplash.com/photo-1604654894610-df63bc536371?q=80&w=2087",
-    services: [
-      {
-        id: "5",
-        name: "Manicure Clásico",
-        description: "Manicure tradicional con esmaltado regular",
-        price: 30,
-        duration: 35,
-      },
-      {
-        id: "6",
-        name: "Pedicure Spa",
-        description: "Pedicure con tratamiento spa relajante",
-        price: 50,
-        duration: 50,
-      },
-      {
-        id: "7",
-        name: "Gel Set",
-        description: "Esmaltado en gel de larga duración",
-        price: 55,
-        duration: 55,
-        note: "Duración premium",
-      },
-      {
-        id: "8",
-        name: "Uñas Acrílicas",
-        description: "Aplicación de uñas acrílicas con diseño",
-        price: 75,
-        duration: 75,
-      },
-    ],
-  },
-  {
-    id: "cejas",
-    name: "CEJAS",
-    description: "Pestañas y cejas perfectas",
-    image: "https://images.unsplash.com/photo-1587876931567-564ce588a903?q=80&w=2070",
-    services: [
-      {
-        id: "9",
-        name: "Extensiones de Pestañas",
-        description: "Extensiones de pestañas pelo por pelo",
-        price: 150,
-        duration: 90,
-      },
-      {
-        id: "10",
-        name: "Lash Lift",
-        description: "Permanente de pestañas naturales",
-        price: 80,
-        duration: 60,
-      },
-      {
-        id: "11",
-        name: "Microblading Cejas",
-        description: "Diseño y microblading de cejas",
-        price: 300,
-        duration: 120,
-      },
-      {
-        id: "12",
-        name: "Diseño de Cejas",
-        description: "Diseño y perfilado de cejas",
-        price: 25,
-        duration: 25,
-      },
-    ],
-  },
-  {
-    id: "facial",
-    name: "FACIAL",
-    description: "Faciales y tratamientos para la piel",
-    image: "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?q=80&w=2070",
-    services: [
-      {
-        id: "13",
-        name: "Limpieza Profunda",
-        description: "Limpieza facial profunda para todo tipo de piel",
-        price: 95,
-        duration: 60,
-      },
-      {
-        id: "14",
-        name: "Hidratación Glow",
-        description: "Tratamiento hidratante para piel radiante",
-        price: 110,
-        duration: 70,
-      },
-      {
-        id: "15",
-        name: "Anti-Age Firming",
-        description: "Tratamiento anti-edad con efecto lifting",
-        price: 130,
-        duration: 75,
-      },
-    ],
-  },
-  {
-    id: "makeup",
-    name: "MAQUILLAJE",
-    description: "Maquillaje profesional para toda ocasión",
-    image: "https://images.unsplash.com/photo-1487412947147-5cebf100ffc2?q=80&w=2071",
-    services: [
-      {
-        id: "16",
-        name: "Makeup Social",
-        description: "Maquillaje perfecto para eventos sociales y fiestas",
-        price: 85,
-        duration: 60,
-      },
-      {
-        id: "17",
-        name: "Makeup de Novia",
-        description: "Maquillaje profesional para el día más especial",
-        price: 180,
-        duration: 120,
-        note: "Prueba opcional disponible",
-      },
-      {
-        id: "18",
-        name: "Prep de Piel",
-        description: "Preparación de piel antes del maquillaje",
-        price: 35,
-        duration: 25,
-        note: "Antes del maquillaje",
-      },
-    ],
-  },
-  {
-    id: "wax",
-    name: "DEPILACIÓN",
-    description: "Depilación con cera profesional",
-    image: "https://images.unsplash.com/photo-1516975080664-ed2fc6a32937?q=80&w=2070",
-    services: [
-      {
-        id: "19",
-        name: "Wax Facial",
-        description: "Depilación facial (cejas, labio, mentón)",
-        price: 20,
-        duration: 20,
-      },
-      {
-        id: "20",
-        name: "Wax Piernas Completas",
-        description: "Depilación de piernas completas",
-        price: 60,
-        duration: 45,
-      },
-      {
-        id: "21",
-        name: "Wax Brasileño",
-        description: "Depilación brasileña completa",
-        price: 65,
-        duration: 30,
-      },
-    ],
-  },
-];
+interface Category {
+  id: string;
+  name: string;
+  description?: string;
+  display_order?: number;
+}
 
-export default function ServiciosPage() {
-  const [selectedServices, setSelectedServices] = useState<string[]>([]);
-  const router = useRouter();
-  const [expandedCategory, setExpandedCategory] = useState<string>("");
-  const [categories, setCategories] = useState<typeof servicesData>(servicesData);
+interface Service {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  duration_minutes: number;
+  category_id: string;
+  active: boolean;
+}
+
+interface Promotion {
+  id: number;
+  title: string;
+  description: string;
+  discount_percentage?: number;
+  discount_amount?: number;
+  valid_until?: string;
+}
+
+interface CategoryWithServices extends Category {
+  services: Service[];
+}
+
+export default function ServicesPage() {
+  const [categories, setCategories] = useState<CategoryWithServices[]>([]);
+  const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [mounted, setMounted] = useState(false);
+  const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
+  const [selectedServices, setSelectedServices] = useState<string[]>([]);
+  const [selectedPromotions, setSelectedPromotions] = useState<string[]>([]);
 
-  // Mark as mounted on client side
   useEffect(() => {
-    setMounted(true);
+    fetchData();
   }, []);
 
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const [catsRes, servsRes, promosRes] = await Promise.all([
+        fetch("/api/categories"),
+        fetch("/api/services"),
+        fetch("/api/promotions/active"),
+      ]);
+
+      if (catsRes.ok && servsRes.ok) {
+        const catsData: Category[] = await catsRes.json();
+        const servsData: { services: Service[] } = await servsRes.json();
+        
+        const servicesList = servsData.services || [];
+
+        // Group services by category
+        const grouped = catsData.map(cat => ({
+          ...cat,
+          services: servicesList.filter(s => String(s.category_id) === String(cat.id) && s.active)
+        })).filter(cat => cat.services.length > 0); // Only show categories with services
+
+        setCategories(grouped);
+        
+        // Set initial expanded category
+        if (promosRes.ok) {
+            const promosData = await promosRes.json();
+            const activePromos = promosData.promotions || [];
+            setPromotions(activePromos);
+            
+            // If there are promotions, expand the promotions section by default (we'll use 'promotions' as ID)
+            // Otherwise expand the first category
+            if (activePromos.length > 0) {
+                setExpandedCategory('promotions');
+            } else if (grouped.length > 0) {
+                setExpandedCategory(grouped[0].id);
+            }
+        } else if (grouped.length > 0) {
+            setExpandedCategory(grouped[0].id);
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleCategory = (id: string) => {
+    setExpandedCategory(expandedCategory === id ? null : id);
+  };
+
   const toggleService = (serviceId: string) => {
-    setSelectedServices((prev) =>
-      prev.includes(serviceId)
-        ? prev.filter((id) => id !== serviceId)
+    setSelectedServices(prev => 
+      prev.includes(serviceId) 
+        ? prev.filter(id => id !== serviceId)
         : [...prev, serviceId]
     );
   };
 
-  const calculateTotal = () => {
-    let total = 0;
-    let duration = 0;
-    servicesData.forEach((category) => {
-      category.services.forEach((service) => {
-        if (selectedServices.includes(service.id)) {
-          total += service.price;
-          duration += service.duration;
-        }
-      });
-    });
-    return { total, duration };
+  const togglePromotion = (promoId: string) => {
+    setSelectedPromotions(prev => 
+      prev.includes(promoId) 
+        ? prev.filter(id => id !== promoId)
+        : [...prev, promoId]
+    );
   };
-
-  const { total, duration } = calculateTotal();
-
-  const handleReserve = () => {
-    if (!selectedServices.length || !mounted) return;
-    const query = new URLSearchParams({
-      services: selectedServices.join(","),
-      step: "2",
-    }).toString();
-    router.push(`/reservar?${query}`);
-  };
-
-  useEffect(() => {
-    if (!mounted) return;
-    
-    const loadServices = async () => {
-      setLoading(true);
-      setError("");
-      try {
-        const [catResult, svcResult] = await Promise.all([
-          supabase
-            .from("Category")
-            .select("id,name,description,order,active")
-            .eq("active", true)
-            .order("order", { ascending: true }),
-          supabase
-            .from("Service")
-            .select("id,categoryId,name,description,duration,price,active")
-            .eq("active", true)
-            .order("categoryId", { ascending: true })
-            .order("name", { ascending: true }),
-        ]);
-
-        const { data: catData, error: catError } = catResult;
-        const { data: svcData, error: svcError } = svcResult;
-
-        // Si hay error en categorías o servicios, usar datos por defecto
-        if (catError || svcError) {
-          console.warn("Error cargando de Supabase, usando datos por defecto", { catError, svcError });
-          setCategories(servicesData);
-          setExpandedCategory(servicesData[0].id);
-          setLoading(false);
-          return;
-        }
-
-        // Si no hay datos, usar datos por defecto
-        if (!catData || !svcData) {
-          console.warn("Sin datos de Supabase, usando datos por defecto");
-          setCategories(servicesData);
-          setExpandedCategory(servicesData[0].id);
-          setLoading(false);
-          return;
-        }
-
-        const grouped = new Map<string, typeof servicesData[number]["services"]>();
-        (svcData || []).forEach((svc) => {
-          const key = svc.categoryId || "Otros";
-          const current = grouped.get(key) || [];
-          current.push({
-            id: String(svc.id),
-            name: svc.name || "",
-            description: svc.description || "",
-            price: Number(svc.price || 0),
-            duration: svc.duration || 0,
-          });
-          grouped.set(key, current);
-        });
-
-        const normalizedCats =
-          (catData || []).map((cat) => ({
-            id: String(cat.id),
-            name: cat.name || "Sin categoría",
-            description: cat.description || "",
-            image: "",
-            services: grouped.get(cat.id) || [],
-          })) || [];
-
-        // Add categories from services not present in service_categories
-        grouped.forEach((services, catId) => {
-          const exists = normalizedCats.find((c) => c.id === catId);
-          if (!exists) {
-            normalizedCats.push({
-              id: catId,
-              name: catId,
-              description: "",
-              image: "",
-              services,
-            });
-          }
-        });
-
-        setCategories(normalizedCats.length ? normalizedCats : servicesData);
-        if (normalizedCats.length) {
-          setExpandedCategory(normalizedCats[0].id);
-        } else {
-          setExpandedCategory(servicesData[0].id);
-        }
-      } catch (err: any) {
-        console.error("Error cargando servicios:", err?.message || err);
-        // En caso de error, usar datos por defecto sin mostrar error
-        setCategories(servicesData);
-        setExpandedCategory(servicesData[0].id);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadServices();
-  }, [mounted]);
-
-  const selectedDetails = useMemo(() => {
-    const list: { id: string; name: string; price: number; duration: number }[] = [];
-    categories.forEach((cat) => {
-      cat.services.forEach((svc) => {
-        if (selectedServices.includes(svc.id)) {
-          list.push({
-            id: svc.id,
-            name: svc.name,
-            price: svc.price,
-            duration: svc.duration,
-          });
-        }
-      });
-    });
-    return list;
-  }, [categories, selectedServices]);
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-white via-[#fff7fb] to-white">
-      <Header />
-      
+    <div className="min-h-screen bg-white">
       {/* Hero Section */}
-      <section className="pt-20 pb-10 md:pt-32 md:pb-12 relative overflow-hidden">
-        <div className="absolute top-10 -left-16 w-64 h-64 bg-[#ffe6f2] rounded-full blur-3xl opacity-60"></div>
-        <div className="absolute -bottom-24 right-0 w-72 h-72 bg-[#ffeaf5] rounded-full blur-3xl opacity-60"></div>
-        <div className="container mx-auto px-4 relative">
-          <div className="max-w-3xl mx-auto text-center">
-            <h1 className="font-playfair text-3xl sm:text-4xl md:text-5xl font-bold text-[#1f1a1c] mb-3">
-              Nuestros Servicios
-            </h1>
-            <p className="text-sm sm:text-base md:text-lg text-gray-600 font-montserrat">
-              Elige tus tratamientos favoritos y agenda tu cita hoy
-            </p>
-          </div>
+      <section className="relative py-20 bg-black text-white overflow-hidden">
+        <div className="absolute inset-0 z-0 opacity-40">
+          <img
+            src="https://images.unsplash.com/photo-1560066984-138dadb4c035?q=80&w=2574"
+            alt="Salon Background"
+            className="w-full h-full object-cover"
+          />
+        </div>
+        <div className="container mx-auto px-4 relative z-10 text-center">
+          <motion.h1 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="font-times text-5xl md:text-7xl mb-6"
+          >
+            Nuestros Servicios
+          </motion.h1>
+          <motion.p 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="text-xl text-gray-300 max-w-2xl mx-auto font-light"
+          >
+            Experiencias de belleza diseñadas para resaltar tu estilo único
+          </motion.p>
         </div>
       </section>
 
-      {/* Main Content */}
-      <section className="pb-20">
-        <div className="container mx-auto px-4">
-          <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+      {/* Services List */}
+      <section className="py-16 container mx-auto px-4">
+        {loading ? (
+          <div className="flex justify-center items-center h-64">
+            <Loader2 className="animate-spin text-pink-600" size={48} />
+          </div>
+        ) : categories.length === 0 && promotions.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500 text-lg">No hay servicios disponibles en este momento.</p>
+          </div>
+        ) : (
+          <div className="max-w-4xl mx-auto space-y-8">
             
-            {/* Services Grid */}
-            <div className="md:col-span-2 lg:col-span-3 space-y-4">
-              {loading && (
-                <div className="flex items-center justify-center gap-3 text-[#1f1a1c] font-montserrat py-8">
-                  <Loader2 className="animate-spin" size={20} />
-                  <span>Cargando servicios...</span>
-                </div>
-              )}
-              
-              {error && (
-                <div className="bg-red-50 text-red-600 p-4 rounded-2xl font-montserrat text-sm">
-                  {error}
-                </div>
-              )}
-              
-              {!loading && categories.map((category) => {
-                const isExpanded = expandedCategory === category.id;
-                return (
-                  <div key={category.id} className="rounded-2xl overflow-hidden bg-white/90 border border-[#f7dce9] shadow-soft">
-                    {/* Category Header */}
-                    <button
-                      onClick={() => setExpandedCategory(isExpanded ? "" : category.id)}
-                      className="w-full flex items-center justify-between bg-gradient-to-r from-[#fde5f0] to-[#fcf0f6] px-4 sm:px-6 py-4 hover:from-[#fcd8ec] hover:to-[#fbe8f3] transition-colors"
-                    >
-                      <div className="text-left">
-                        <p className="font-playfair text-lg sm:text-xl font-bold text-[#1f1a1c]">
-                          {category.name}
-                        </p>
-                        <p className="text-xs sm:text-sm text-[#1f1a1c]/70 font-montserrat mt-1">
-                          {category.description}
-                        </p>
-                      </div>
-                      <ChevronDown 
-                        className={`flex-shrink-0 text-[#1f1a1c] transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-                        size={20}
-                      />
-                    </button>
+            {/* Promotions Section */}
+            {promotions.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="border-2 border-pink-100 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow bg-pink-50/30"
+              >
+                <button
+                  onClick={() => toggleCategory('promotions')}
+                  className="w-full flex items-center justify-between p-6 hover:bg-pink-50/50 transition-colors text-left"
+                >
+                  <div>
+                    <h2 className="text-2xl font-times font-bold text-pink-800 flex items-center gap-3">
+                      <Sparkles className="text-pink-600" size={24} />
+                      Promociones Especiales
+                      <Badge className="text-xs font-normal bg-pink-600 text-white hover:bg-pink-700 border-none">
+                        {promotions.length} ofertas
+                      </Badge>
+                    </h2>
+                    <p className="text-pink-600/80 mt-1 text-sm">Ofertas por tiempo limitado</p>
+                  </div>
+                  <ChevronDown
+                    className={`text-pink-400 transition-transform duration-300 ${
+                      expandedCategory === 'promotions' ? "rotate-180" : ""
+                    }`}
+                    size={24}
+                  />
+                </button>
 
-                    {/* Services List */}
-                    {isExpanded && (
-                      <div className="bg-white px-4 sm:px-6 py-4 space-y-3 max-h-96 overflow-y-auto">
-                        {category.services.map((service) => {
-                          const isSelected = selectedServices.includes(service.id);
-                          return (
+                <AnimatePresence>
+                  {expandedCategory === 'promotions' && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.3 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="p-6 pt-0 border-t border-pink-100">
+                        <div className="grid gap-4 mt-4">
+                          {promotions.map((promo) => (
                             <div
-                              key={service.id}
-                              className="flex gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl border border-[#f1e4e9] hover:border-[#e46768]/50 hover:bg-[#fef8fa] transition-colors"
+                              key={promo.id}
+                              className="flex flex-col md:flex-row md:items-center justify-between p-4 bg-white rounded-lg border border-pink-100 hover:border-pink-300 transition-colors group shadow-sm"
                             >
-                              <div className="flex-1 min-w-0">
-                                <h4 className="font-playfair font-semibold text-[#1f1a1c] text-sm sm:text-base">
-                                  {service.name}
-                                </h4>
-                                <p className="text-xs sm:text-sm text-gray-600 font-montserrat mt-1 line-clamp-2">
-                                  {service.description}
+                              <div className="flex-1 pr-4">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <h3 className="font-bold text-gray-900 group-hover:text-pink-700 transition-colors flex items-center gap-2">
+                                    {promo.title}
+                                    <Tag size={14} className="text-pink-500" />
+                                  </h3>
+                                </div>
+                                <p className="text-gray-600 text-sm mb-2">
+                                  {promo.description}
                                 </p>
-                                <div className="flex flex-wrap items-center gap-2 mt-2">
-                                  <span className="inline-flex items-center gap-1 text-xs text-gray-500 font-montserrat">
-                                    <Clock size={12} />
-                                    {service.duration}m
-                                  </span>
-                                  {service.note && (
-                                    <Badge className="bg-[#e7f5ed] text-[#0d2b17] border-none text-xs">
-                                      {service.note}
-                                    </Badge>
+                                {promo.valid_until && (
+                                  <p className="text-xs text-pink-500 font-medium">
+                                    Válido hasta: {new Date(promo.valid_until).toLocaleDateString()}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="flex items-center justify-between md:justify-end gap-4 mt-4 md:mt-0 min-w-[140px]">
+                                <div className="text-right">
+                                  {promo.discount_amount && (
+                                    <span className="text-lg font-bold text-pink-600 block">
+                                      -${promo.discount_amount}
+                                    </span>
+                                  )}
+                                  {promo.discount_percentage && (
+                                    <span className="text-lg font-bold text-pink-600 block">
+                                      -{promo.discount_percentage}%
+                                    </span>
                                   )}
                                 </div>
-                              </div>
-                              <div className="flex flex-col items-end gap-2 flex-shrink-0">
-                                <span className="font-playfair font-bold text-[#1f1a1c] text-base sm:text-lg">
-                                  {formatPrice(service.price)}
-                                </span>
-                                <Button
-                                  onClick={() => toggleService(service.id)}
-                                  size="sm"
-                                  className={`text-xs sm:text-sm rounded-lg font-semibold transition-all ${
-                                    isSelected
-                                      ? "bg-[#e46768] text-white hover:bg-[#d55b5c]"
-                                      : "bg-[#0d2b17] text-white hover:bg-[#0b2514]"
+                                <Button 
+                                  size="sm" 
+                                  className={`${
+                                    selectedPromotions.includes(String(promo.id))
+                                      ? "bg-pink-600 hover:bg-pink-700 text-white"
+                                      : "bg-white text-pink-600 border border-pink-200 hover:bg-pink-50"
                                   }`}
+                                  onClick={() => togglePromotion(String(promo.id))}
                                 >
-                                  {isSelected ? "Quitar" : "Agregar"}
+                                  {selectedPromotions.includes(String(promo.id)) ? "Seleccionada" : "Seleccionar"}
                                 </Button>
                               </div>
                             </div>
-                          );
-                        })}
+                          ))}
+                        </div>
                       </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            )}
+
+            {categories.map((category, index) => (
+              <motion.div
+                key={category.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+                className="border rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow bg-white"
+              >
+                <button
+                  onClick={() => toggleCategory(category.id)}
+                  className="w-full flex items-center justify-between p-6 bg-white hover:bg-gray-50 transition-colors text-left"
+                >
+                  <div>
+                    <h2 className="text-2xl font-times font-bold text-gray-900 flex items-center gap-3">
+                      {category.name}
+                      <Badge className="text-xs font-normal bg-pink-50 text-pink-700 hover:bg-pink-100">
+                        {category.services.length} servicios
+                      </Badge>
+                    </h2>
+                    {category.description && (
+                      <p className="text-gray-500 mt-1 text-sm">{category.description}</p>
                     )}
                   </div>
-                );
-              })}
-            </div>
+                  <ChevronDown
+                    className={`text-gray-400 transition-transform duration-300 ${
+                      expandedCategory === category.id ? "rotate-180" : ""
+                    }`}
+                    size={24}
+                  />
+                </button>
 
-            {/* Sidebar Summary - Desktop */}
-            <div className="hidden md:block md:col-span-1">
-              <div className="sticky top-24 rounded-2xl bg-white/95 border border-[#f7dce9] shadow-soft p-5 space-y-4">
-                <div>
-                  <h3 className="font-playfair text-lg font-bold text-[#1f1a1c]">
-                    Tu Selección
-                  </h3>
-                  {selectedServices.length > 0 && (
-                    <Badge className="bg-[#e46768] text-white border-none mt-2">
-                      {selectedServices.length} servicio{selectedServices.length !== 1 ? 's' : ''}
-                    </Badge>
-                  )}
-                </div>
-
-                {selectedDetails.length === 0 ? (
-                  <p className="text-xs sm:text-sm text-gray-500 font-montserrat py-4 text-center">
-                    Agrega servicios para ver el resumen
-                  </p>
-                ) : (
-                  <>
-                    <div className="space-y-2 max-h-48 overflow-y-auto">
-                      {selectedDetails.map((svc) => (
-                        <div
-                          key={svc.id}
-                          className="flex items-start justify-between gap-2 text-xs sm:text-sm font-montserrat border-b border-[#f1e4e9] pb-2"
-                        >
-                          <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-[#1f1a1c] truncate">
-                              {svc.name}
-                            </p>
-                            <p className="text-gray-500 text-xs">{svc.duration}m</p>
-                          </div>
-                          <span className="font-semibold text-[#1f1a1c] flex-shrink-0">
-                            {formatPrice(svc.price)}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="border-t border-[#f1e4e9] pt-3 space-y-2 text-sm font-montserrat">
-                      <div className="flex justify-between text-gray-600">
-                        <span>Duración total</span>
-                        <span className="font-semibold text-[#1f1a1c]">{duration}m</span>
-                      </div>
-                      <div className="flex justify-between text-lg font-bold text-[#e46768]">
-                        <span>Total</span>
-                        <span>{formatPrice(total)}</span>
-                      </div>
-                    </div>
-
-                    <Button
-                      className="w-full bg-[#e46768] text-white hover:bg-[#d55b5c] font-semibold"
-                      onClick={handleReserve}
-                      disabled={!selectedServices.length}
+                <AnimatePresence>
+                  {expandedCategory === category.id && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.3 }}
+                      className="overflow-hidden"
                     >
-                      Reservar
-                    </Button>
-                  </>
-                )}
-              </div>
-            </div>
+                      <div className="p-6 pt-0 border-t border-gray-100 bg-gray-50/30">
+                        <div className="grid gap-4 mt-4">
+                          {category.services.map((service) => (
+                            <div
+                              key={service.id}
+                              className="flex flex-col md:flex-row md:items-center justify-between p-4 bg-white rounded-lg border border-gray-100 hover:border-pink-200 transition-colors group"
+                            >
+                              <div className="flex-1 pr-4">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <h3 className="font-bold text-gray-900 group-hover:text-pink-700 transition-colors">
+                                    {service.name}
+                                  </h3>
+                                </div>
+                                <p className="text-gray-600 text-sm mb-2">
+                                  {service.description}
+                                </p>
+                                <div className="flex items-center gap-4 text-xs text-gray-500">
+                                  <span className="flex items-center gap-1">
+                                    <Clock size={14} />
+                                    {service.duration_minutes} min
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="flex items-center justify-between md:justify-end gap-4 mt-4 md:mt-0 min-w-[140px]">
+                                <span className="text-lg font-bold text-gray-900">
+                                  ${service.price}
+                                </span>
+                                <Button 
+                                  size="sm" 
+                                  className={`${
+                                    selectedServices.includes(service.id)
+                                      ? "bg-pink-600 hover:bg-pink-700 text-white"
+                                      : "bg-white text-black border border-gray-300 hover:bg-gray-50"
+                                  }`}
+                                  onClick={() => toggleService(service.id)}
+                                >
+                                  {selectedServices.includes(service.id) ? "Seleccionado" : "Seleccionar"}
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            ))}
           </div>
-        </div>
+        )}
       </section>
 
-      {/* Mobile Bottom Bar */}
-      {selectedServices.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 bg-[#1f1a1c] text-white shadow-2xl z-40 md:hidden">
-          <div className="container mx-auto px-4 py-4">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex-1">
-                <div className="text-xs text-gray-400 font-montserrat">Total</div>
-                <div className="font-bold text-lg text-[#e46768]">{formatPrice(total)}</div>
+      {/* Floating Booking Bar */}
+      <AnimatePresence>
+        {(selectedServices.length > 0 || selectedPromotions.length > 0) && (
+          <motion.div
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
+            className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-50 p-4 pb-8 md:pb-4"
+          >
+            <div className="container mx-auto flex items-center justify-between max-w-4xl">
+              <div>
+                <p className="font-bold text-gray-900 text-lg">
+                  {selectedServices.length + selectedPromotions.length} item{(selectedServices.length + selectedPromotions.length) !== 1 ? 's' : ''} seleccionado{(selectedServices.length + selectedPromotions.length) !== 1 ? 's' : ''}
+                </p>
+                <p className="text-sm text-gray-500 hidden sm:block">
+                  Continúa para elegir fecha y hora
+                </p>
               </div>
-              <Button
-                className="bg-[#e46768] text-white hover:bg-[#d55b5c] font-semibold"
-                onClick={handleReserve}
-                disabled={!selectedServices.length}
-              >
-                Reservar ({selectedServices.length})
-              </Button>
+              <Link href={`/reservar?services=${selectedServices.join(',')}&promotions=${selectedPromotions.join(',')}`}>
+                <Button className="bg-black hover:bg-gray-800 text-white px-8 py-6 text-lg rounded-full font-semibold shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5">
+                  Reservar Cita
+                </Button>
+              </Link>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Padding for mobile bar */}
-      {selectedServices.length > 0 && <div className="h-20 md:h-0"></div>}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <Footer />
-    </main>
+    </div>
   );
 }

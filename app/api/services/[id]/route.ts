@@ -1,6 +1,20 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { createClient } from "@supabase/supabase-js";
+import { cookies } from "next/headers";
+
+// Helper para crear cliente autenticado
+async function getAuthenticatedSupabase() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("sb-access-token")?.value;
+
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    token
+      ? { global: { headers: { Authorization: `Bearer ${token}` } } }
+      : {}
+  );
+}
 
 export async function GET(
   request: Request,
@@ -8,14 +22,15 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const service = await db.service.findUnique({
-      where: { id },
-      include: {
-        category: true,
-      },
-    });
+    const supabase = await getAuthenticatedSupabase();
+    
+    const { data: service, error } = await supabase
+      .from('services')
+      .select('*, category:categories(*)')
+      .eq('id', id)
+      .single();
 
-    if (!service) {
+    if (error || !service) {
       return NextResponse.json(
         { error: "Servicio no encontrado" },
         { status: 404 }
@@ -38,28 +53,26 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
-    const session = await getSession();
-    if (!session) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    }
+    const supabase = await getAuthenticatedSupabase();
 
     const { nombre, descripcion, precio, duracion, categoriaId, activo } =
       await request.json();
 
-    const service = await db.service.update({
-      where: { id },
-      data: {
+    const { data: service, error } = await supabase
+      .from('services')
+      .update({
         name: nombre,
         description: descripcion,
         price: parseFloat(precio),
-        duration: parseInt(duracion),
-        categoryId: categoriaId,
+        duration_minutes: parseInt(duracion),
+        category_id: categoriaId,
         active: activo,
-      },
-      include: {
-        category: true,
-      },
-    });
+      })
+      .eq('id', id)
+      .select('*, category:categories(*)')
+      .single();
+
+    if (error) throw error;
 
     return NextResponse.json({ service });
   } catch (error) {
@@ -77,14 +90,14 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const session = await getSession();
-    if (!session) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    }
+    const supabase = await getAuthenticatedSupabase();
 
-    await db.service.delete({
-      where: { id },
-    });
+    const { error } = await supabase
+      .from('services')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
 
     return NextResponse.json({ success: true });
   } catch (error) {

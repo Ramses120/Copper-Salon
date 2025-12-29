@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import Header from "@/components/Header";
+import { useState, useEffect } from "react";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,41 +11,80 @@ import {
 } from "@/components/ui/dialog";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
 import NextImage from "next/image";
+import { createClient } from "@supabase/supabase-js";
 
-// Mock data - en producción esto vendrá de la base de datos
-const portfolioImages = [
-  { id: 1, category: "hairstyle", url: "https://images.unsplash.com/photo-1562322140-8baeececf3df?q=80&w=2069", caption: "Balayage Signature" },
-  { id: 2, category: "hairstyle", url: "https://images.unsplash.com/photo-1519699047748-de8e457a634e?q=80&w=2070", caption: "Corte y Color" },
-  { id: 3, category: "makeup", url: "https://images.unsplash.com/photo-1487412947147-5cebf100ffc2?q=80&w=2071", caption: "Makeup Novia" },
-  { id: 4, category: "makeup", url: "https://images.unsplash.com/photo-1512496015851-a90fb38ba796?q=80&w=2070", caption: "Makeup Social" },
-  { id: 5, category: "nail-services", url: "https://images.unsplash.com/photo-1604654894610-df63bc536371?q=80&w=2087", caption: "Nail Art" },
-  { id: 6, category: "nail-services", url: "https://images.unsplash.com/photo-1610992015732-2449b76344bc?q=80&w=2070", caption: "Manicure Spa" },
-  { id: 7, category: "hairstyle", url: "https://images.unsplash.com/photo-1560066984-138dadb4c035?q=80&w=2574", caption: "Hair Styling" },
-  { id: 8, category: "skincare", url: "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?q=80&w=2070", caption: "Facial Treatment" },
-  { id: 9, category: "lashes-eyebrows", url: "https://images.unsplash.com/photo-1583001800930-c2706ba05d7b?q=80&w=2070", caption: "Lash Extensions" },
-  { id: 10, category: "hairstyle", url: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?q=80&w=2069", caption: "Color Specialist" },
-  { id: 11, category: "makeup", url: "https://images.unsplash.com/photo-1516975080664-ed2fc6a32937?q=80&w=2070", caption: "Evening Makeup" },
-  { id: 12, category: "nail-services", url: "https://images.unsplash.com/photo-1607779097040-26e80aa78e66?q=80&w=2070", caption: "Gel Manicure" },
-  { id: 13, category: "skincare", url: "https://images.unsplash.com/photo-1616394584738-fc6e612e71b9?q=80&w=2070", caption: "Hydrating Treatment" },
-  { id: 14, category: "lashes-eyebrows", url: "https://images.unsplash.com/photo-1588161255381-e23e17b06c49?q=80&w=2070", caption: "Microblading" },
-  { id: 15, category: "hairstyle", url: "https://images.unsplash.com/photo-1522338140262-f46f5913618a?q=80&w=2070", caption: "Wedding Hair" },
-  { id: 16, category: "makeup", url: "https://images.unsplash.com/photo-1598387181032-a3103a2db5b1?q=80&w=2070", caption: "Natural Glow" },
-];
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
+interface GalleryImage {
+  id: number;
+  image_url: string;
+  title: string;
+  category: string;
+  visible: boolean;
+  is_featured: boolean;
+  created_at: string;
+}
+
+const categoryMap: { [key: string]: { name: string; nameEn: string } } = {
+  cortes: { name: "Cortes", nameEn: "Haircuts" },
+  coloracion: { name: "Coloración", nameEn: "Coloring" },
+  tratamientos: { name: "Tratamientos", nameEn: "Treatments" },
+  peinados: { name: "Peinados", nameEn: "Hairstyles" },
+  manicure: { name: "Manicure", nameEn: "Manicure" },
+  cejas: { name: "Cejas & Pestañas", nameEn: "Lashes & Brows" },
+};
 
 const categories = [
   { id: "all", name: "Todos", nameEn: "All" },
-  { id: "hairstyle", name: "HairStyle", nameEn: "HairStyle" },
-  { id: "makeup", name: "Makeup", nameEn: "Makeup" },
-  { id: "nail-services", name: "Uñas", nameEn: "Nails" },
-  { id: "skincare", name: "Skincare", nameEn: "Skincare" },
-  { id: "lashes-eyebrows", name: "Pestañas & Cejas", nameEn: "Lashes & Brows" },
-  { id: "wax", name: "Wax", nameEn: "Wax" },
+  { id: "cortes", name: "Cortes", nameEn: "Haircuts" },
+  { id: "coloracion", name: "Coloración", nameEn: "Coloring" },
+  { id: "tratamientos", name: "Tratamientos", nameEn: "Treatments" },
+  { id: "peinados", name: "Peinados", nameEn: "Hairstyles" },
+  { id: "manicure", name: "Manicure", nameEn: "Manicure" },
+  { id: "cejas", name: "Cejas & Pestañas", nameEn: "Lashes & Brows" },
 ];
 
 export default function PortafolioPage() {
+  const [portfolioImages, setPortfolioImages] = useState<GalleryImage[]>([]);
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchGalleryImages();
+  }, []);
+
+  const fetchGalleryImages = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("portfolio_images")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      
+      // Mapear los datos de la tabla portfolio_images a la interfaz GalleryImage
+      const mappedImages = (data || []).map((img: any) => ({
+        id: img.id,
+        image_url: img.url,
+        title: img.caption || 'Sin título',
+        category: img.category,
+        visible: true,
+        is_featured: false,
+        created_at: img.created_at
+      }));
+
+      setPortfolioImages(mappedImages);
+    } catch (error) {
+      console.error("Error fetching gallery:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredImages = selectedCategory === "all" 
     ? portfolioImages 
@@ -68,8 +106,7 @@ export default function PortafolioPage() {
   };
 
   return (
-    <main className="min-h-screen bg-copper-gradient">
-      <Header />
+    <main className="min-h-screen bg-copper-gradient pt-24 lg:pt-32">
       
       {/* Hero Section */}
       <section className="pt-32 pb-12">
@@ -118,45 +155,60 @@ export default function PortafolioPage() {
       <section className="pb-20">
         <div className="container mx-auto px-4">
           <div className="max-w-7xl mx-auto">
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {filteredImages.map((image, index) => (
-                <div
-                  key={image.id}
-                  className="group relative aspect-square overflow-hidden rounded-xl shadow-md hover:shadow-2xl transition-all duration-300 cursor-pointer animate-scale-in"
-                  style={{ animationDelay: `${index * 0.05}s` }}
-                  onClick={() => openLightbox(index)}
-                >
-                  <NextImage
-                    src={image.url}
-                    alt={image.caption}
-                    fill
-                    sizes="(min-width: 1280px) 320px, (min-width: 768px) 33vw, 90vw"
-                    className="object-cover group-hover:scale-110 transition-transform duration-500"
-                    unoptimized
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                    <div className="absolute bottom-0 left-0 right-0 p-4">
-                      <p className="text-white font-semibold text-sm">{image.caption}</p>
-                    </div>
-                  </div>
-                  <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                    <div className="bg-white/90 backdrop-blur-sm rounded-full p-2">
-                      <svg className="w-5 h-5 text-copper-red" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                      </svg>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {filteredImages.length === 0 && (
-              <div className="text-center py-20">
-                <div className="text-gray-400 text-6xl mb-4">📸</div>
-                <p className="text-gray-600 text-lg">
-                  No hay imágenes en esta categoría todavía
-                </p>
+            {loading ? (
+              <div className="flex justify-center items-center py-20">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black"></div>
               </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {filteredImages.map((image, index) => (
+                    <div
+                      key={image.id}
+                      className="group relative aspect-square overflow-hidden rounded-xl shadow-md hover:shadow-2xl transition-all duration-300 cursor-pointer animate-scale-in"
+                      style={{ animationDelay: `${index * 0.05}s` }}
+                      onClick={() => openLightbox(index)}
+                    >
+                      <NextImage
+                        src={image.image_url}
+                        alt={image.title}
+                        fill
+                        sizes="(min-width: 1280px) 320px, (min-width: 768px) 33vw, 90vw"
+                        className="object-cover group-hover:scale-110 transition-transform duration-500"
+                        unoptimized
+                      />
+                      {image.is_featured && (
+                        <div className="absolute top-3 left-3">
+                          <Badge className="bg-yellow-500 text-black hover:bg-yellow-600">
+                            ⭐ Destacada
+                          </Badge>
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <div className="absolute bottom-0 left-0 right-0 p-4">
+                          <p className="text-white font-semibold text-sm">{categoryMap[image.category]?.name || image.category}</p>
+                        </div>
+                      </div>
+                      <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <div className="bg-white/90 backdrop-blur-sm rounded-full p-2">
+                          <svg className="w-5 h-5 text-copper-red" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {filteredImages.length === 0 && (
+                  <div className="text-center py-20">
+                    <div className="text-gray-400 text-6xl mb-4">📸</div>
+                    <p className="text-gray-600 text-lg">
+                      No hay imágenes en esta categoría todavía
+                    </p>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -188,8 +240,8 @@ export default function PortafolioPage() {
             {/* Image */}
             <div className="relative w-full h-[80vh]">
               <NextImage
-                src={filteredImages[currentImageIndex]?.url || ""}
-                alt={filteredImages[currentImageIndex]?.caption || "Imagen de portafolio"}
+                src={filteredImages[currentImageIndex]?.image_url || ""}
+                alt={filteredImages[currentImageIndex]?.title || "Imagen de portafolio"}
                 fill
                 sizes="100vw"
                 className="object-contain"
@@ -200,7 +252,7 @@ export default function PortafolioPage() {
             {/* Caption */}
             <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6">
               <p className="text-white text-center text-lg font-semibold">
-                {filteredImages[currentImageIndex]?.caption}
+                {categoryMap[filteredImages[currentImageIndex]?.category]?.name || filteredImages[currentImageIndex]?.category}
               </p>
               <p className="text-white/70 text-center text-sm mt-1">
                 {currentImageIndex + 1} / {filteredImages.length}

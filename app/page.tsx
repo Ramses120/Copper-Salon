@@ -1,6 +1,7 @@
-import Header from "@/components/Header";
 import HeroSection from "@/components/HeroSection";
 import WhyChooseUsSection from "@/components/WhyChooseUsSection";
+import PromotionsSection from "@/components/PromotionsSection";
+import { supabase } from "@/lib/supabaseClient";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -13,11 +14,18 @@ import Faciales from "@/assets/Faciales.jpg";
 import nails from "@/assets/nails.jpg";
 import fondoCopper from "@/assets/fondo_copper.jpg";
 
-export default function HomePage() {
+export default async function HomePage() {
+  const { data: promotions } = await supabase
+    .from("promotions")
+    .select("*")
+    .eq("is_active", true)
+    .eq("show_on_site", true)
+    .order("priority", { ascending: false });
+
   return (
-    <main className="min-h-screen">
-      <Header />
+    <main className="min-h-screen pt-24 lg:pt-32">
       <HeroSection />
+      {/* <PromotionsSection promotions={promotions || []} /> */}
       <WhyChooseUsSection />
       
       {/* Services Preview Section */}
@@ -60,10 +68,12 @@ export default function HomePage() {
               </ul>
             </div>
             <div className="relative rounded-2xl overflow-hidden shadow-elegant aspect-[4/5] max-h-[380px] w-full max-w-sm mx-auto lg:max-w-none">
-              <img
-                src={nails.src}
+              <NextImage
+                src={nails}
                 alt="Nail care Copper"
                 className="w-full h-full object-cover"
+                fill
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
               />
             </div>
           </div>
@@ -72,19 +82,21 @@ export default function HomePage() {
           <div className="grid lg:grid-cols-[1.1fr,0.9fr] gap-6 lg:gap-8 mt-8 sm:mt-10 items-start max-w-5xl mx-auto">
             <div className="grid sm:grid-cols-2 gap-2 sm:gap-3">
               {[
-                makeup.src,
-                cejas.src,
-                Depilacion.src,
-                Faciales.src,
+                makeup,
+                cejas,
+                Depilacion,
+                Faciales,
               ].map((image, idx) => (
                 <div
-                  key={image}
+                  key={idx}
                   className={`relative overflow-hidden rounded-xl shadow-soft ${idx === 0 ? "aspect-[4/3]" : "aspect-[4/3]"}`}
                 >
-                  <img
+                  <NextImage
                     src={image}
                     alt={`Servicio ${idx + 1}`}
                     className="w-full h-full object-cover"
+                    fill
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                   />
                 </div>
               ))}

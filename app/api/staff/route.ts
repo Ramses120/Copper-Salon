@@ -1,10 +1,20 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { cookies } from "next/headers";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+// Helper para crear cliente autenticado
+async function getAuthenticatedSupabase() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("sb-access-token")?.value;
+
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    token
+      ? { global: { headers: { Authorization: `Bearer ${token}` } } }
+      : {}
+  );
+}
 
 // Función para generar código único de autenticación
 function generateAuthCode(): string {
@@ -15,23 +25,51 @@ function generateAuthCode(): string {
 
 export async function GET() {
   try {
-    const { data: staffList, error } = await supabase
-      .from("staff")
-      .select("*")
-      .eq("active", true)
-      .order("name", { ascending: true });
+    const supabase = await getAuthenticatedSupabase();
+    
+    // Si es admin (tiene token), mostrar todos. Si no, solo activos.
+    // Pero por ahora mantenemos la lógica original de mostrar solo activos para la lista pública
+    // O mejor, si es admin dashboard, deberíamos ver todos.
+    // Como este endpoint se usa en el admin dashboard, vamos a intentar traer todos
+    // y dejar que el frontend filtre o muestre el estado.
+    
+    let query = supabase.from("staff").select("*").eq("active", true).order("name", { ascending: true });
+    
+    // Si no hay token (público), filtrar solo activos
+    // (Aunque RLS ya protege, es bueno filtrar explícitamente para la UI pública)
+    // Pero aquí asumimos que si se llama desde admin, queremos ver todos.
+    // Para simplificar y arreglar el error de guardado, en GET usaremos el cliente autenticado
+    // que permitirá ver todo si es admin.
+    
+    const { data: staffList, error } = await query;
 
     if (error) throw error;
 
     // Transformar al formato que espera el frontend
-    const staff = (staffList || []).map((s: any) => ({
-      id: s.id,
-      nombre: s.name,
-      telefono: s.phone || "",
-      especialidades: s.specialties ? (typeof s.specialties === 'string' ? JSON.parse(s.specialties) : s.specialties) : [],
-      activo: s.active,
-      auth_code: s.auth_code,
-    }));
+    const staff = (staffList || []).map((s: any) => {
+      let parsedSpecialties = [];
+      try {
+        // Intentar parsear si es JSON
+        if (s.specialty && (s.specialty.startsWith('[') || s.specialty.startsWith('{'))) {
+          parsedSpecialties = JSON.parse(s.specialty);
+        } else if (s.specialty) {
+          // Si es texto plano, ponerlo en un array
+          parsedSpecialties = [s.specialty];
+        }
+      } catch (e) {
+        console.warn("Error parsing specialties for staff:", s.id, e);
+        parsedSpecialties = s.specialty ? [s.specialty] : [];
+      }
+
+      return {
+        id: s.id,
+        nombre: s.name,
+        telefono: s.phone || "",
+        especialidades: parsedSpecialties,
+        activo: s.active,
+        auth_code: s.auth_code,
+      };
+    });
 
     return NextResponse.json({ staff });
   } catch (error) {
@@ -68,11 +106,13 @@ export async function POST(request: Request) {
       domingo: { activo: false, inicio: "09:00", fin: "17:30" },
     };
 
+    const supabase = await getAuthenticatedSupabase();
+
     const { data: staff, error } = await supabase
       .from("staff")
       .insert({
         name: nombre,
-        specialties: JSON.stringify(especialidades),
+        specialty: JSON.stringify(especialidades),
         phone: telefono,
         email: "",
         photo_url: "",
@@ -96,10 +136,21 @@ export async function POST(request: Request) {
     };
 
     return NextResponse.json({ staff: transformedStaff }, { status: 201 });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating staff:", error);
+    
+    if (error?.code === 'PGRST303') {
+      return NextResponse.json(
+        { error: "Tu sesión ha expirado. Por favor inicia sesión nuevamente.", details: error },
+        { status: 401 }
+      );
+    }
+
     return NextResponse.json(
-      { error: "Error al crear estilista", details: String(error) },
+      { 
+        error: "Error al crear estilista", 
+        details: error instanceof Error ? error.message : JSON.stringify(error) 
+      },
       { status: 500 }
     );
   }

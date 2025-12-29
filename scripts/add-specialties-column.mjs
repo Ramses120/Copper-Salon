@@ -76,7 +76,7 @@ async function addSpecialtiesColumn() {
 
     console.log('\n✅ Fase 1 completada!\n');
     console.log('📝 Próximo paso:');
-    console.log('Ejecuta: npx prisma db push');
+    console.log('Verifica que la columna se haya creado correctamente en Supabase.');
 
   } catch (error) {
     console.error('❌ Error:', error);

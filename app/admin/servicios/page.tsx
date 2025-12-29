@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,226 +14,361 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Edit, Trash2, Search, DollarSign, Clock } from "lucide-react";
+import { Plus, Edit, Trash2, Search, DollarSign, Clock, Loader2, FolderPlus } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
 
-// Mock data
-const mockServices = [
-  {
-    id: "1",
-    nombre: "Corte + Estilo",
-    descripcion: "Corte personalizado con estilo profesional",
-    precio: 45,
-    duracion: 45,
-    categoria: "HairStyle",
-    activo: true,
-  },
-  {
-    id: "2",
-    nombre: "Color Completo",
-    descripcion: "Coloración completa del cabello",
-    precio: 120,
-    duracion: 120,
-    categoria: "HairStyle",
-    activo: true,
-  },
-  {
-    id: "3",
-    nombre: "Balayage Signature",
-    descripcion: "Técnica de coloración balayage premium",
-    precio: 220,
-    duracion: 180,
-    categoria: "HairStyle",
-    activo: true,
-  },
-  {
-    id: "5",
-    nombre: "Makeup Social",
-    descripcion: "Maquillaje para eventos sociales",
-    precio: 85,
-    duracion: 60,
-    categoria: "Makeup",
-    activo: true,
-  },
-  {
-    id: "6",
-    nombre: "Makeup de Novia",
-    descripcion: "Maquillaje nupcial con prueba previa",
-    precio: 180,
-    duracion: 120,
-    categoria: "Makeup",
-    activo: true,
-  },
-];
+interface Category {
+  id: string;
+  name: string;
+  description?: string;
+  order?: number;
+}
 
-const categories = [
-  "HairStyle",
-  "Makeup",
-  "Nail Services",
-  "Skincare",
-  "Wax",
-  "Lashes & Eyebrows",
-];
+interface Service {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  duration_minutes: number;
+  category_id: string;
+  active: boolean;
+  category?: Category;
+}
 
 export default function AdminServiciosPage() {
-  const [services, setServices] = useState(mockServices);
+  const [services, setServices] = useState<Service[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("all");
-  const [showForm, setShowForm] = useState(false);
-  const [editingService, setEditingService] = useState<any>(null);
-  const [formData, setFormData] = useState({
+  
+  // Form states
+  const [showServiceForm, setShowServiceForm] = useState(false);
+  const [showCategoryForm, setShowCategoryForm] = useState(false);
+  const [editingService, setEditingService] = useState<Service | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const [serviceFormData, setServiceFormData] = useState({
     nombre: "",
     descripcion: "",
     precio: "",
     duracion: "",
-    categoria: "",
+    categoriaId: "",
   });
 
-  const filteredServices = services.filter((service) => {
-    const matchesSearch = service.nombre
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase());
-    const matchesCategory =
-      selectedCategory === "all" || service.categoria === selectedCategory;
-    return matchesSearch && matchesCategory;
+  const [categoryFormData, setCategoryFormData] = useState({
+    name: "",
+    description: "",
   });
 
-  const handleEdit = (service: any) => {
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const [catsRes, servsRes] = await Promise.all([
+        fetch("/api/categories"),
+        fetch("/api/services"),
+      ]);
+
+      if (catsRes.ok) {
+        const catsData = await catsRes.json();
+        setCategories(catsData);
+      }
+
+      if (servsRes.ok) {
+        const servsData = await servsRes.json();
+        setServices(servsData.services || []);
+      }
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditService = (service: Service) => {
     setEditingService(service);
-    setFormData({
-      nombre: service.nombre,
-      descripcion: service.descripcion,
-      precio: service.precio.toString(),
-      duracion: service.duracion.toString(),
-      categoria: service.categoria,
+    setServiceFormData({
+      nombre: service.name,
+      descripcion: service.description || "",
+      precio: service.price.toString(),
+      duracion: service.duration_minutes.toString(),
+      categoriaId: service.category_id,
     });
-    setShowForm(true);
+    setShowServiceForm(true);
   };
 
-  const handleDelete = (id: string) => {
-    if (confirm("¿Estás seguro de eliminar este servicio?")) {
-      setServices(services.filter((s) => s.id !== id));
+  const handleDeleteService = async (id: string) => {
+    if (!confirm("¿Estás seguro de eliminar este servicio?")) return;
+
+    try {
+      const res = await fetch(`/api/services/${id}`, {
+        method: "DELETE",
+      });
+
+      if (res.ok) {
+        setServices(services.filter((s) => s.id !== id));
+      } else {
+        alert("Error al eliminar el servicio");
+      }
+    } catch (error) {
+      console.error("Error deleting service:", error);
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleServiceSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Aquí se enviaría al backend
-    if (editingService) {
-      setServices(
-        services.map((s) =>
-          s.id === editingService.id
-            ? {
-                ...s,
-                ...formData,
-                precio: parseFloat(formData.precio),
-                duracion: parseInt(formData.duracion),
-              }
-            : s
-        )
-      );
-    } else {
-      const newService = {
-        id: Date.now().toString(),
-        ...formData,
-        precio: parseFloat(formData.precio),
-        duracion: parseInt(formData.duracion),
-        activo: true,
-      };
-      setServices([...services, newService]);
+    setSubmitting(true);
+
+    try {
+      const url = editingService 
+        ? `/api/services/${editingService.id}` 
+        : "/api/services";
+      
+      const method = editingService ? "PUT" : "POST";
+
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...serviceFormData,
+          activo: true
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (editingService) {
+          setServices(services.map(s => s.id === editingService.id ? data.service : s));
+        } else {
+          setServices([...services, data.service]);
+        }
+        resetServiceForm();
+      } else {
+        const error = await res.json();
+        alert(error.error || "Error al guardar servicio");
+      }
+    } catch (error) {
+      console.error("Error submitting service:", error);
+      alert("Error al guardar servicio");
+    } finally {
+      setSubmitting(false);
     }
-    resetForm();
   };
 
-  const resetForm = () => {
-    setFormData({
+  const handleCategorySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+
+    try {
+      const res = await fetch("/api/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(categoryFormData),
+      });
+
+      if (res.ok) {
+        const newCategory = await res.json();
+        setCategories([...categories, newCategory]);
+        setShowCategoryForm(false);
+        setCategoryFormData({ name: "", description: "" });
+      } else {
+        const error = await res.json();
+        alert(error.error || "Error al crear categoría");
+      }
+    } catch (error) {
+      console.error("Error creating category:", error);
+      alert("Error al crear categoría");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const resetServiceForm = () => {
+    setServiceFormData({
       nombre: "",
       descripcion: "",
       precio: "",
       duracion: "",
-      categoria: "",
+      categoriaId: "",
     });
     setEditingService(null);
-    setShowForm(false);
+    setShowServiceForm(false);
   };
+
+  const openNewServiceModal = (categoryId?: string) => {
+    setServiceFormData({
+      nombre: "",
+      descripcion: "",
+      precio: "",
+      duracion: "",
+      categoriaId: categoryId || (categories[0]?.id || ""),
+    });
+    setEditingService(null);
+    setShowServiceForm(true);
+  };
+
+  // Group services by category
+  const servicesByCategory = categories.map(cat => ({
+    ...cat,
+    services: services.filter(s => s.category_id === cat.id && 
+      (searchTerm === "" || s.name.toLowerCase().includes(searchTerm.toLowerCase())))
+  }));
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-96">
+        <Loader2 className="animate-spin text-pink-600" size={48} />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="font-times text-3xl font-bold text-gray-900 mb-2">
-            Servicios
+            Servicios y Categorías
           </h1>
-          <p className="text-gray-600">Gestiona los servicios del salón</p>
+          <p className="text-gray-600">Gestiona el menú de servicios del salón</p>
         </div>
-        <Button variant="copper" onClick={() => setShowForm(true)}>
-          <Plus className="mr-2" size={18} />
-          Nuevo Servicio
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setShowCategoryForm(true)}>
+            <FolderPlus className="mr-2" size={18} />
+            Nueva Categoría
+          </Button>
+          <Button className="bg-pink-600 hover:bg-pink-700" onClick={() => openNewServiceModal()}>
+            <Plus className="mr-2" size={18} />
+            Nuevo Servicio
+          </Button>
+        </div>
       </div>
 
-      {/* Filters */}
+      {/* Search */}
       <Card>
         <CardContent className="p-4">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                  size={18}
-                />
-                <Input
-                  placeholder="Buscar servicios..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </div>
-            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-              <SelectTrigger className="w-full md:w-64">
-                <SelectValue placeholder="Todas las categorías" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas las categorías</SelectItem>
-                {categories.map((cat) => (
-                  <SelectItem key={cat} value={cat}>
-                    {cat}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="relative">
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              size={18}
+            />
+            <Input
+              placeholder="Buscar servicios..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
           </div>
         </CardContent>
       </Card>
 
-      {/* Form Modal */}
-      {showForm && (
-        <Card className="bg-blue-50 border-blue-200">
-          <CardContent className="p-6">
-            <h3 className="text-xl font-bold mb-4">
-              {editingService ? "Editar Servicio" : "Nuevo Servicio"}
-            </h3>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid md:grid-cols-2 gap-4">
+      {/* Categories List */}
+      <div className="space-y-8">
+        {servicesByCategory.map((category) => (
+          <div key={category.id} className="space-y-4">
+            <div className="flex items-center justify-between border-b pb-2">
+              <h2 className="text-2xl font-semibold text-gray-800">{category.name}</h2>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="text-pink-600 hover:text-pink-700 hover:bg-pink-50"
+                onClick={() => openNewServiceModal(category.id)}
+              >
+                <Plus size={16} className="mr-1" />
+                Agregar a {category.name}
+              </Button>
+            </div>
+
+            {category.services.length === 0 ? (
+              <p className="text-gray-500 italic py-4">No hay servicios en esta categoría.</p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {category.services.map((service) => (
+                  <Card key={service.id} className="hover:shadow-md transition-shadow border-gray-200">
+                    <CardContent className="p-5">
+                      <div className="flex justify-between items-start mb-2">
+                        <h3 className="font-bold text-lg text-gray-900">{service.name}</h3>
+                        <Badge className="text-gray-500 border-gray-300">
+                          {service.duration_minutes} min
+                        </Badge>
+                      </div>
+                      
+                      <p className="text-gray-600 text-sm mb-4 line-clamp-2 h-10">
+                        {service.description}
+                      </p>
+                      
+                      <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
+                        <span className="text-xl font-bold text-pink-600">
+                          ${service.price}
+                        </span>
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-gray-500 hover:text-blue-600"
+                            onClick={() => handleEditService(service)}
+                          >
+                            <Edit size={16} />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-gray-500 hover:text-red-600"
+                            onClick={() => handleDeleteService(service.id)}
+                          >
+                            <Trash2 size={16} />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+
+        {categories.length === 0 && !loading && (
+          <div className="text-center py-12 bg-gray-50 rounded-lg border border-dashed border-gray-300">
+            <FolderPlus className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+            <h3 className="text-lg font-medium text-gray-900">No hay categorías</h3>
+            <p className="text-gray-500 mb-4">Comienza creando una categoría para tus servicios.</p>
+            <Button onClick={() => setShowCategoryForm(true)}>
+              Crear Primera Categoría
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {/* Service Form Modal */}
+      {showServiceForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <Card className="bg-white w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <CardHeader>
+              <CardTitle>{editingService ? "Editar Servicio" : "Nuevo Servicio"}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleServiceSubmit} className="space-y-4">
                 <div>
                   <Label htmlFor="nombre">Nombre del Servicio *</Label>
                   <Input
                     id="nombre"
                     required
-                    value={formData.nombre}
+                    value={serviceFormData.nombre}
                     onChange={(e) =>
-                      setFormData({ ...formData, nombre: e.target.value })
+                      setServiceFormData({ ...serviceFormData, nombre: e.target.value })
                     }
-                    placeholder="Ej: Corte + Estilo"
                   />
                 </div>
+                
                 <div>
                   <Label htmlFor="categoria">Categoría *</Label>
                   <Select
-                    value={formData.categoria}
+                    value={serviceFormData.categoriaId}
                     onValueChange={(value) =>
-                      setFormData({ ...formData, categoria: value })
+                      setServiceFormData({ ...serviceFormData, categoriaId: value })
                     }
                   >
                     <SelectTrigger>
@@ -241,127 +376,116 @@ export default function AdminServiciosPage() {
                     </SelectTrigger>
                     <SelectContent>
                       {categories.map((cat) => (
-                        <SelectItem key={cat} value={cat}>
-                          {cat}
+                        <SelectItem key={cat.id} value={cat.id}>
+                          {cat.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
-              </div>
 
-              <div>
-                <Label htmlFor="descripcion">Descripción</Label>
-                <Textarea
-                  id="descripcion"
-                  value={formData.descripcion}
-                  onChange={(e) =>
-                    setFormData({ ...formData, descripcion: e.target.value })
-                  }
-                  placeholder="Describe el servicio..."
-                  rows={3}
-                />
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="precio">Precio ($) *</Label>
-                  <Input
-                    id="precio"
-                    type="number"
-                    step="0.01"
-                    required
-                    value={formData.precio}
+                  <Label htmlFor="descripcion">Descripción</Label>
+                  <Textarea
+                    id="descripcion"
+                    value={serviceFormData.descripcion}
                     onChange={(e) =>
-                      setFormData({ ...formData, precio: e.target.value })
+                      setServiceFormData({ ...serviceFormData, descripcion: e.target.value })
                     }
-                    placeholder="45.00"
+                    rows={3}
                   />
                 </div>
-                <div>
-                  <Label htmlFor="duracion">Duración (minutos) *</Label>
-                  <Input
-                    id="duracion"
-                    type="number"
-                    required
-                    value={formData.duracion}
-                    onChange={(e) =>
-                      setFormData({ ...formData, duracion: e.target.value })
-                    }
-                    placeholder="45"
-                  />
-                </div>
-              </div>
 
-              <div className="flex gap-3">
-                <Button type="submit" variant="copper">
-                  {editingService ? "Actualizar" : "Crear"} Servicio
-                </Button>
-                <Button type="button" variant="outline" onClick={resetForm}>
-                  Cancelar
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Services List */}
-      <div className="grid gap-4">
-        {filteredServices.map((service) => (
-          <Card key={service.id} className="hover:shadow-md transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-xl font-bold text-gray-900">
-                      {service.nombre}
-                    </h3>
-                    <Badge className="bg-gray-100 text-gray-700 border-gray-200">
-                      {service.categoria}
-                    </Badge>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="precio">Precio ($) *</Label>
+                    <Input
+                      id="precio"
+                      type="number"
+                      step="0.01"
+                      required
+                      value={serviceFormData.precio}
+                      onChange={(e) =>
+                        setServiceFormData({ ...serviceFormData, precio: e.target.value })
+                      }
+                    />
                   </div>
-                  <p className="text-gray-600 mb-4">{service.descripcion}</p>
-                  <div className="flex items-center gap-6 text-sm">
-                    <div className="flex items-center gap-2 text-copper-red font-semibold">
-                      <DollarSign size={16} />
-                      {formatPrice(service.precio)}
-                    </div>
-                    <div className="flex items-center gap-2 text-gray-600">
-                      <Clock size={16} />
-                      {service.duracion} min
-                    </div>
+                  <div>
+                    <Label htmlFor="duracion">Duración (min) *</Label>
+                    <Input
+                      id="duracion"
+                      type="number"
+                      required
+                      value={serviceFormData.duracion}
+                      onChange={(e) =>
+                        setServiceFormData({ ...serviceFormData, duracion: e.target.value })
+                      }
+                    />
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleEdit(service)}
-                  >
-                    <Edit size={16} />
+
+                <div className="flex gap-3 justify-end pt-4">
+                  <Button type="button" variant="outline" onClick={resetServiceForm}>
+                    Cancelar
                   </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-red-600 hover:text-red-700"
-                    onClick={() => handleDelete(service.id)}
-                  >
-                    <Trash2 size={16} />
+                  <Button type="submit" className="bg-pink-600 hover:bg-pink-700" disabled={submitting}>
+                    {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {editingService ? "Actualizar" : "Crear"}
                   </Button>
                 </div>
-              </div>
+              </form>
             </CardContent>
           </Card>
-        ))}
-      </div>
+        </div>
+      )}
 
-      {filteredServices.length === 0 && (
-        <Card>
-          <CardContent className="p-12 text-center">
-            <p className="text-gray-500">No se encontraron servicios</p>
-          </CardContent>
-        </Card>
+      {/* Category Form Modal */}
+      {showCategoryForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <Card className="bg-white w-full max-w-md">
+            <CardHeader>
+              <CardTitle>Nueva Categoría</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleCategorySubmit} className="space-y-4">
+                <div>
+                  <Label htmlFor="catName">Nombre de la Categoría *</Label>
+                  <Input
+                    id="catName"
+                    required
+                    value={categoryFormData.name}
+                    onChange={(e) =>
+                      setCategoryFormData({ ...categoryFormData, name: e.target.value })
+                    }
+                    placeholder="Ej: Cortes de Cabello"
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="catDesc">Descripción (Opcional)</Label>
+                  <Textarea
+                    id="catDesc"
+                    value={categoryFormData.description}
+                    onChange={(e) =>
+                      setCategoryFormData({ ...categoryFormData, description: e.target.value })
+                    }
+                    placeholder="Breve descripción de la categoría"
+                  />
+                </div>
+
+                <div className="flex gap-3 justify-end pt-4">
+                  <Button type="button" variant="outline" onClick={() => setShowCategoryForm(false)}>
+                    Cancelar
+                  </Button>
+                  <Button type="submit" className="bg-pink-600 hover:bg-pink-700" disabled={submitting}>
+                    {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Crear Categoría
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
       )}
     </div>
   );

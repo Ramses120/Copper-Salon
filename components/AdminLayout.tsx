@@ -22,12 +22,6 @@ interface AdminLayoutProps {
 export default function AdminLayout({ children }: AdminLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
-
-  // Early return for login page - check this FIRST before any hooks
-  if (pathname === "/admin/login") {
-    return <>{children}</>;
-  }
-
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -72,17 +66,6 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     }
   };
 
-  // Show loading state while checking auth
-  if (!mounted || loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-gray-600">Cargando...</p>
-        </div>
-      </div>
-    );
-  }
-
   const menuItems = [
     { name: "Dashboard", icon: LayoutDashboard, path: "/admin/dashboard" },
     { name: "Clientes", icon: Users, path: "/admin/clientes" },
@@ -92,6 +75,17 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { name: "Promociones", icon: Tag, path: "/admin/promociones" },
     { name: "Portafolio", icon: Image, path: "/admin/portafolio" },
   ];
+
+  // Show loading state while checking auth
+  // if (!mounted || loading) {
+  //   return (
+  //     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+  //       <div className="text-center">
+  //         <p className="text-gray-600">Cargando...</p>
+  //       </div>
+  //     </div>
+  //   );
+  // }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -167,7 +161,15 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
       {/* Main Content */}
       <main className="lg:ml-64 pt-16 lg:pt-0">
-        <div className="p-4 lg:p-8">{children}</div>
+        <div className="p-4 lg:p-8">
+          {(!mounted || loading) ? (
+            <div className="flex items-center justify-center h-64">
+              <p className="text-gray-600">Cargando...</p>
+            </div>
+          ) : (
+            children
+          )}
+        </div>
       </main>
     </div>
   );
