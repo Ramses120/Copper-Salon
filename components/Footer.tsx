@@ -8,8 +8,6 @@ export default function Footer() {
   const quickLinks = [
     { label: "Inicio", href: "/" },
     { label: "Servicios", href: "/servicios" },
-    { label: "Reservas", href: "/reservar" },
-    { label: "Promociones", href: "/promociones" },
     { label: "Contacto", href: "/contacto" },
   ];
 
