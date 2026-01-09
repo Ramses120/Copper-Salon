@@ -11,8 +11,6 @@ export async function GET() {
     const { data, error } = await supabase
       .from('promotions')
       .select('*')
-      .eq('is_active', true)
-      .eq('show_on_site', true)
       .order('priority', { ascending: false });
 
     if (error) {
@@ -22,16 +20,24 @@ export async function GET() {
 
     console.log('[API] Raw data from DB:', data);
 
+    const normalizeDate = (value?: string | null) =>
+      value ? value.slice(0, 10) : null;
+
     const isWithinRange = (start?: string | null, end?: string | null) => {
-      if (!start && !end) return true;
-      if (start && start > today) return false;
-      if (end && end < today) return false;
+      const startDate = normalizeDate(start);
+      const endDate = normalizeDate(end);
+      if (!startDate && !endDate) return true;
+      if (startDate && startDate > today) return false;
+      if (endDate && endDate < today) return false;
       return true;
     };
 
     // Mapear datos al formato esperado por la app
     const mappedData = (data || [])
       .filter((promo: any) => {
+        const isActive = promo.is_active !== false;
+        const showOnSite = promo.show_on_site !== false;
+        if (!isActive || !showOnSite) return false;
         const start = promo.valid_from || promo.start_date || null;
         const end = promo.valid_until || promo.end_date || null;
         return isWithinRange(start, end);
