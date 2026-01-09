@@ -22,6 +22,7 @@ import {
   Mail,
   Calendar as CalendarIcon,
 } from "lucide-react";
+import { formatTime } from "@/lib/utils";
 import "react-calendar/dist/Calendar.css";
 import "./calendar.css";
 
@@ -250,8 +251,7 @@ const ACTIVE_STATUSES = ["pending", "confirmed"];
 
   const formatDisplayTime = (timeStr: string) => {
     if (!timeStr) return "";
-    const [h, m] = timeStr.split(":");
-    return `${h?.padStart(2, "0")}:${m?.padStart(2, "0")}`;
+    return formatTime(timeStr);
   };
 
   // Contar reservas por día

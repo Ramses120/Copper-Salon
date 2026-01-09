@@ -19,7 +19,7 @@ import {
   Sparkles,
   Loader2,
 } from "lucide-react";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice, formatTime } from "@/lib/utils";
 
 interface Service {
   id: string;
@@ -286,6 +286,8 @@ function ReservarForm() {
 
   const { total, duration } = calculateTotal();
 
+  const formatDisplayTime = (time: string) => (time ? formatTime(time) : "");
+
   const canProceedToStep = (stepNumber: number) => {
     if (stepNumber === 2) return (selectedServices.length > 0 || selectedPromotions.length > 0) && selectedStaff !== "" && selectedDate !== "" && selectedTime !== "";
     return true;
@@ -424,7 +426,7 @@ function ReservarForm() {
                       <p><span className="font-semibold">Servicios:</span> {getSelectedServices().map(s => s.name).join(", ")}</p>
                       <p><span className="font-semibold">Estilista:</span> {getSelectedStaffInfo()?.name}</p>
                       <p><span className="font-semibold">Fecha:</span> {selectedDate}</p>
-                      <p><span className="font-semibold">Hora:</span> {selectedTime}</p>
+                      <p><span className="font-semibold">Hora:</span> {formatDisplayTime(selectedTime)}</p>
                       <p><span className="font-semibold">Duración estimada:</span> {duration} minutos</p>
                     </div>
                   </div>
@@ -596,7 +598,7 @@ function ReservarForm() {
                                             : "bg-gray-50 hover:bg-gray-100 border-transparent"
                                           }`}
                                       >
-                                        {time}
+                                        {formatDisplayTime(time)}
                                       </button>
                                     );
                                   })
@@ -849,7 +851,7 @@ function ReservarForm() {
                             FECHA Y HORA
                           </h4>
                           <p className="text-sm">{selectedDate}</p>
-                          <p className="text-sm">{selectedTime}</p>
+                          <p className="text-sm">{formatDisplayTime(selectedTime)}</p>
                         </div>
 
                         <div className="border-t pt-4">
