@@ -37,6 +37,10 @@ export async function GET(request: Request) {
 
     const normalize = (str?: string | null) =>
       (str || "").toString().trim().toLowerCase();
+    const getCategoryName = (value: { name?: string } | { name?: string }[] | null | undefined) => {
+      if (!value) return "";
+      return Array.isArray(value) ? value[0]?.name || "" : value.name || "";
+    };
 
     const catById = new Map<number | string, any>();
     (categories || []).forEach((c) => {
@@ -48,7 +52,7 @@ export async function GET(request: Request) {
       filteredServices = filteredServices.filter(
         (s) =>
           String(s.category_id) === categoryFilter ||
-          normalize(s.categories?.name) === normalize(categoryFilter)
+          normalize(getCategoryName(s.categories)) === normalize(categoryFilter)
       );
     }
 
@@ -63,7 +67,7 @@ export async function GET(request: Request) {
         active: s.active,
         featured: s.featured,
         category_id: s.category_id || null,
-        category: cat?.name || s.categories?.name || "",
+        category: cat?.name || getCategoryName(s.categories) || "",
       };
     });
 
