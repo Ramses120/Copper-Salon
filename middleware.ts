@@ -1,6 +1,11 @@
 // Middleware para proteger rutas de administración
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Rutas públicas que no requieren autenticación
 const PUBLIC_PATHS = [
@@ -34,8 +39,15 @@ function isPublicPath(pathname: string): boolean {
   return PUBLIC_API_PATHS.some((path) => pathname.startsWith(path));
 }
 
+async function isValidAccessToken(token?: string | null) {
+  if (!token) return false;
+  const { data, error } = await supabase.auth.getUser(token);
+  return !error && !!data?.user;
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const accessToken = request.cookies.get("sb-access-token")?.value || null;
 
   // Permitir rutas públicas sin verificación
   if (isPublicPath(pathname)) {
@@ -44,9 +56,8 @@ export async function middleware(request: NextRequest) {
 
   // Rutas de administración protegidas
   if (pathname.startsWith("/admin")) {
-    const accessToken = request.cookies.get("sb-access-token");
-
-    if (!accessToken) {
+    const valid = await isValidAccessToken(accessToken);
+    if (!valid) {
       return NextResponse.redirect(new URL("/admin/login", request.url));
     }
 
@@ -55,9 +66,8 @@ export async function middleware(request: NextRequest) {
 
   // APIs protegidas (excluyendo públicas)
   if (pathname.startsWith("/api")) {
-    const accessToken = request.cookies.get("sb-access-token");
-
-    if (!accessToken) {
+    const valid = await isValidAccessToken(accessToken);
+    if (!valid) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 

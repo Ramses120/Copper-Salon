@@ -81,7 +81,7 @@ function ReservarForm() {
   const [error, setError] = useState("");
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
-  
+
   // Customer check state
   const [customerStatus, setCustomerStatus] = useState<{ exists: boolean; name?: string } | null>(null);
   const [checkingCustomer, setCheckingCustomer] = useState(false);
@@ -108,7 +108,19 @@ function ReservarForm() {
 
         if (staffRes.ok) {
           const staffJson = await staffRes.json();
-          setStaffData(staffJson.staff || []);
+          // Normalize staff shape: backend sometimes returns fields in Spanish (`nombre`, `especialidades`)
+          const normalized = (staffJson.staff || []).map((s: any) => ({
+            id: s.id,
+            name: s.name || s.nombre || s.nombre_completo || "",
+            specialty:
+              s.specialty ||
+              (s.especialidades
+                ? Array.isArray(s.especialidades)
+                  ? s.especialidades.join(", ")
+                  : String(s.especialidades)
+                : s.specialty) || undefined,
+          }));
+          setStaffData(normalized);
         }
 
         if (promotionsRes.ok) {
@@ -139,13 +151,13 @@ function ReservarForm() {
           shouldAdvance = true;
         }
       } else if (serviceIdParam) {
-         if (servicesData.length > 0) {
-           const service = servicesData.find(s => String(s.id) === serviceIdParam);
-           if (service) {
-             setSelectedServices([serviceIdParam]);
-             shouldAdvance = true;
-           }
-         }
+        if (servicesData.length > 0) {
+          const service = servicesData.find(s => String(s.id) === serviceIdParam);
+          if (service) {
+            setSelectedServices([serviceIdParam]);
+            shouldAdvance = true;
+          }
+        }
       }
 
       if (promotionsParam) {
@@ -156,19 +168,19 @@ function ReservarForm() {
           shouldAdvance = true;
         }
       } else if (promotionIdParam) {
-         if (promotionsData.length > 0) {
-           const promo = promotionsData.find(p => String(p.id) === promotionIdParam);
-           if (promo) {
-             setSelectedPromotions([String(promo.id)]);
-             shouldAdvance = true;
-           }
-         }
+        if (promotionsData.length > 0) {
+          const promo = promotionsData.find(p => String(p.id) === promotionIdParam);
+          if (promo) {
+            setSelectedPromotions([String(promo.id)]);
+            shouldAdvance = true;
+          }
+        }
       }
 
       if (shouldAdvance) {
         // setStep(2); // Removed auto-advance to step 2 since we merged steps
       }
-      
+
       setParamProcessed(true);
     }
   }, [serviceIdParam, servicesParam, promotionIdParam, promotionsParam, servicesData, promotionsData, loading, paramProcessed]);
@@ -295,9 +307,9 @@ function ReservarForm() {
           .map(id => promotionsData.find(p => String(p.id) === id)?.name)
           .filter(Boolean)
           .join(", ");
-        
+
         if (promoNames) {
-            finalNotes = `[PROMOCIONES: ${promoNames}] ${finalNotes || ''}`;
+          finalNotes = `[PROMOCIONES: ${promoNames}] ${finalNotes || ''}`;
         }
       }
 
@@ -332,7 +344,7 @@ function ReservarForm() {
   const getAvailableDates = () => {
     const dates = [];
     const today = new Date();
-    for (let i = 1; i <= 14; i++) {
+    for (let i = 0; i < 14; i++) {
       const date = new Date(today);
       date.setDate(today.getDate() + i);
       if (date.getDay() !== 0) {
@@ -354,11 +366,11 @@ function ReservarForm() {
 
   // Show loading if we have params but haven't processed them yet (to avoid flash of Step 1)
   if ((serviceIdParam || promotionIdParam || servicesParam || promotionsParam) && !paramProcessed) {
-      return (
-        <div className="min-h-screen bg-copper-gradient pt-32 flex justify-center">
-            <Loader2 className="animate-spin text-copper-red" size={48} />
-        </div>
-      );
+    return (
+      <div className="min-h-screen bg-copper-gradient pt-32 flex justify-center">
+        <Loader2 className="animate-spin text-copper-red" size={48} />
+      </div>
+    );
   }
 
   if (loading) {
@@ -443,19 +455,17 @@ function ReservarForm() {
                 {[1, 2].map((s) => (
                   <div key={s} className="flex items-center">
                     <div
-                      className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold transition-all ${
-                        step >= s
+                      className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold transition-all ${step >= s
                           ? "bg-copper-red text-white"
                           : "bg-gray-300 text-gray-600"
-                      }`}
+                        }`}
                     >
                       {s}
                     </div>
                     {s < 2 && (
                       <div
-                        className={`w-8 md:w-16 h-1 transition-all ${
-                          step > s ? "bg-copper-red" : "bg-gray-300"
-                        }`}
+                        className={`w-8 md:w-16 h-1 transition-all ${step > s ? "bg-copper-red" : "bg-gray-300"
+                          }`}
                       />
                     )}
                   </div>
@@ -474,237 +484,234 @@ function ReservarForm() {
               <div className="space-y-6 animate-fade-in">
                 {/* Services Summary Section */}
                 <Card className="bg-white/85 backdrop-blur-sm border-copper-red/20">
-                    <CardContent className="p-6">
-                        <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
-                            <Sparkles className="text-copper-red" />
-                            Servicios Seleccionados
-                        </h3>
-                        
-                        {selectedServices.length === 0 && selectedPromotions.length === 0 ? (
-                            <div className="text-center py-8">
-                                <p className="text-gray-500 mb-4">No has seleccionado ningún servicio.</p>
-                                <Link href="/servicios">
-                                    <Button variant="copper">Ir a Servicios</Button>
-                                </Link>
-                            </div>
-                        ) : (
-                            <div className="space-y-4">
-                                {selectedServices.length > 0 && (
-                                    <div className="grid gap-3 sm:grid-cols-2">
-                                        {getSelectedServices().map(s => (
-                                            <div key={s.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-100">
-                                                <span className="font-medium">{s.name}</span>
-                                                <span className="font-bold text-copper-red">{formatPrice(s.price)}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                                
-                                {selectedPromotions.length > 0 && (
-                                    <div className="grid gap-3 sm:grid-cols-2">
-                                        {selectedPromotions.map(promoId => {
-                                            const promo = promotionsData.find(p => String(p.id) === promoId);
-                                            return promo ? (
-                                                <div key={promo.id} className="flex justify-between items-center p-3 bg-pink-50 rounded-lg border border-pink-100">
-                                                    <div>
-                                                        <span className="font-medium text-pink-900">{promo.name}</span>
-                                                        <p className="text-xs text-pink-700">{promo.description}</p>
-                                                    </div>
-                                                </div>
-                                            ) : null;
-                                        })}
-                                    </div>
-                                )}
-                                
-                                <div className="flex justify-end items-center gap-4 pt-2 border-t mt-2">
-                                    <div className="text-sm text-gray-500">Duración aprox: {duration} min</div>
-                                    <div className="text-lg font-bold">Total: <span className="text-copper-red">{formatPrice(total)}</span></div>
-                                </div>
-                            </div>
+                  <CardContent className="p-6">
+                    <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
+                      <Sparkles className="text-copper-red" />
+                      Servicios Seleccionados
+                    </h3>
+
+                    {selectedServices.length === 0 && selectedPromotions.length === 0 ? (
+                      <div className="text-center py-8">
+                        <p className="text-gray-500 mb-4">No has seleccionado ningún servicio.</p>
+                        <Link href="/servicios">
+                          <Button variant="copper">Ir a Servicios</Button>
+                        </Link>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {selectedServices.length > 0 && (
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            {getSelectedServices().map(s => (
+                              <div key={s.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-100">
+                                <span className="font-medium">{s.name}</span>
+                                <span className="font-bold text-copper-red">{formatPrice(s.price)}</span>
+                              </div>
+                            ))}
+                          </div>
                         )}
-                    </CardContent>
+
+                        {selectedPromotions.length > 0 && (
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            {selectedPromotions.map(promoId => {
+                              const promo = promotionsData.find(p => String(p.id) === promoId);
+                              return promo ? (
+                                <div key={promo.id} className="flex justify-between items-center p-3 bg-pink-50 rounded-lg border border-pink-100">
+                                  <div>
+                                    <span className="font-medium text-pink-900">{promo.name}</span>
+                                    <p className="text-xs text-pink-700">{promo.description}</p>
+                                  </div>
+                                </div>
+                              ) : null;
+                            })}
+                          </div>
+                        )}
+
+                        <div className="flex justify-end items-center gap-4 pt-2 border-t mt-2">
+                          <div className="text-sm text-gray-500">Duración aprox: {duration} min</div>
+                          <div className="text-lg font-bold">Total: <span className="text-copper-red">{formatPrice(total)}</span></div>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
                 </Card>
 
                 {(selectedServices.length > 0 || selectedPromotions.length > 0) && (
-                    <div className="grid lg:grid-cols-3 gap-6">
-                  <div className="lg:col-span-2 space-y-6">
-                    <Card className="bg-white/85 backdrop-blur-sm">
-                      <CardContent className="p-6 space-y-6">
-                        <div>
-                          <h3 className="font-semibold text-lg mb-3 flex items-center gap-2 justify-center lg:justify-start">
-                            <Calendar className="text-copper-red" />
-                            Selecciona una fecha
-                          </h3>
-                          <div className="grid grid-cols-3 md:grid-cols-4 gap-3 lg:grid-cols-3 xl:grid-cols-4">
-                            {getAvailableDates().map((date, index) => {
-                              const dateStr = date.toISOString().split("T")[0];
-                              const isSelected = selectedDate === dateStr;
-                              const display = formatDateDisplay(date);
-                              return (
-                                <button
-                                  key={index}
-                                  onClick={() => setSelectedDate(dateStr)}
-                                  className={`p-4 rounded-xl text-center transition-all border ${
-                                    isSelected
-                                      ? "bg-copper-red text-white shadow-lg border-copper-red"
-                                      : "bg-gray-50 hover:bg-gray-100 border-transparent"
-                                  }`}
-                                >
-                                  <div className="text-xs font-semibold mb-1">
-                                    {display.day}
-                                  </div>
-                                  <div className="text-2xl font-bold">{display.date}</div>
-                                  <div className="text-xs mt-1">{display.month}</div>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-
-                        {selectedDate && (
-                          <div className="space-y-3">
-                            <h3 className="font-semibold text-lg flex items-center gap-2 justify-center lg:justify-start">
-                              <Clock className="text-copper-red" />
-                              Selecciona una hora
+                  <div className="grid lg:grid-cols-3 gap-6">
+                    <div className="lg:col-span-2 space-y-6">
+                      <Card className="bg-white/85 backdrop-blur-sm">
+                        <CardContent className="p-6 space-y-6">
+                          <div>
+                            <h3 className="font-semibold text-lg mb-3 flex items-center gap-2 justify-center lg:justify-start">
+                              <Calendar className="text-copper-red" />
+                              Selecciona una fecha
                             </h3>
-                            <p className="text-sm text-gray-600 text-center lg:text-left">
-                              Horario: 9:00 AM - 5:30 PM
-                            </p>
-                            <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-                              {loadingSlots ? (
-                                <div className="col-span-full flex justify-center py-4">
-                                  <Loader2 className="animate-spin text-copper-red" />
-                                </div>
-                              ) : availableSlots.length > 0 ? (
-                                availableSlots.map((time) => {
-                                  const isSelected = selectedTime === time;
-                                  return (
-                                    <button
-                                      key={time}
-                                      onClick={() => setSelectedTime(time)}
-                                      className={`p-3 rounded-lg text-center transition-all border ${
-                                        isSelected
-                                          ? "bg-copper-red text-white shadow-lg border-copper-red"
-                                          : "bg-gray-50 hover:bg-gray-100 border-transparent"
+                            <div className="grid grid-cols-3 md:grid-cols-4 gap-3 lg:grid-cols-3 xl:grid-cols-4">
+                              {getAvailableDates().map((date, index) => {
+                                const dateStr = date.toISOString().split("T")[0];
+                                const isSelected = selectedDate === dateStr;
+                                const display = formatDateDisplay(date);
+                                return (
+                                  <button
+                                    key={index}
+                                    onClick={() => setSelectedDate(dateStr)}
+                                    className={`p-4 rounded-xl text-center transition-all border ${isSelected
+                                        ? "bg-copper-red text-white shadow-lg border-copper-red"
+                                        : "bg-gray-50 hover:bg-gray-100 border-transparent"
                                       }`}
-                                    >
-                                      {time}
-                                    </button>
-                                  );
-                                })
-                              ) : (
-                                <div className="col-span-full text-center text-gray-500 py-4">
-                                  No hay horarios disponibles.
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-
-                    <Card className="bg-white/85 backdrop-blur-sm">
-                      <CardContent className="p-6">
-                        <h3 className="font-semibold text-lg mb-4 text-center lg:text-left">
-                          Elige tu estilista
-                        </h3>
-                        <div className="grid sm:grid-cols-2 gap-4">
-                          {staffData.map((staff) => {
-                            const isSelected = selectedStaff === staff.id;
-                            return (
-                              <Card
-                                key={staff.id}
-                                className={`cursor-pointer transition-all ${
-                                  isSelected
-                                    ? "bg-copper-red/10 border-2 border-copper-red"
-                                    : "bg-white/80 border-2 border-transparent hover:border-copper-red/50"
-                                }`}
-                                onClick={() => setSelectedStaff(staff.id)}
-                              >
-                                <CardContent className="p-5 text-center lg:text-left space-y-1">
-                                  <div className="flex items-center justify-between gap-2">
-                                    <h3 className="font-semibold text-base text-[#1f1a1c]">
-                                      {staff.name}
-                                    </h3>
-                                    {isSelected && (
-                                      <CheckCircle2 className="text-copper-red" size={18} />
-                                    )}
-                                  </div>
-                                  <p className="text-sm text-gray-600">{staff.specialty || 'Especialista'}</p>
-                                </CardContent>
-                              </Card>
-                            );
-                          })}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-
-                  {/* Summary Sidebar */}
-                  <div className="lg:col-span-1">
-                    <Card className="bg-white/90 backdrop-blur-sm sticky top-24 border-copper-red/20 shadow-lg">
-                      <CardContent className="p-6 space-y-4">
-                        <h3 className="font-semibold text-lg border-b pb-2">Resumen</h3>
-                        
-                        {/* Selected Services */}
-                        {selectedServices.length > 0 && (
-                          <div>
-                            <p className="text-xs font-bold text-gray-500 uppercase mb-2">Servicios</p>
-                            <ul className="space-y-2">
-                              {getSelectedServices().map(s => (
-                                <li key={s.id} className="text-sm flex justify-between">
-                                  <span>{s.name}</span>
-                                  <span className="font-semibold">{formatPrice(s.price)}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-
-                        {/* Selected Promotion */}
-                        {selectedPromotions.length > 0 && (
-                          <div>
-                            <p className="text-xs font-bold text-gray-500 uppercase mb-2">Promociones</p>
-                            <div className="space-y-2">
-                              {selectedPromotions.map(promoId => {
-                                const promo = promotionsData.find(p => String(p.id) === promoId);
-                                return promo ? (
-                                  <div key={promo.id} className="bg-pink-50 p-3 rounded-lg border border-pink-100">
-                                    <p className="font-bold text-copper-red">{promo.name}</p>
-                                    <p className="text-xs text-gray-600 mt-1">{promo.description}</p>
-                                  </div>
-                                ) : null;
+                                  >
+                                    <div className="text-xs font-semibold mb-1">
+                                      {display.day}
+                                    </div>
+                                    <div className="text-2xl font-bold">{display.date}</div>
+                                    <div className="text-xs mt-1">{display.month}</div>
+                                  </button>
+                                );
                               })}
                             </div>
                           </div>
-                        )}
 
-                        <div className="border-t pt-3 mt-2">
-                          <div className="flex justify-between text-sm mb-1">
-                            <span>Duración:</span>
-                            <span>{duration} min</span>
-                          </div>
-                          <div className="flex justify-between font-bold text-lg">
-                            <span>Total:</span>
-                            <span className="text-copper-red">{formatPrice(total)}</span>
-                          </div>
-                          {selectedPromotions.length > 0 && (
-                            <p className="text-xs text-gray-400 mt-1 italic">
-                              * Las promociones no afectan el total calculado aquí.
-                            </p>
+                          {selectedDate && (
+                            <div className="space-y-3">
+                              <h3 className="font-semibold text-lg flex items-center gap-2 justify-center lg:justify-start">
+                                <Clock className="text-copper-red" />
+                                Selecciona una hora
+                              </h3>
+                              <p className="text-sm text-gray-600 text-center lg:text-left">
+                                Horario: 9:00 AM - 5:30 PM
+                              </p>
+                              <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                                {loadingSlots ? (
+                                  <div className="col-span-full flex justify-center py-4">
+                                    <Loader2 className="animate-spin text-copper-red" />
+                                  </div>
+                                ) : availableSlots.length > 0 ? (
+                                  availableSlots.map((time) => {
+                                    const isSelected = selectedTime === time;
+                                    return (
+                                      <button
+                                        key={time}
+                                        onClick={() => setSelectedTime(time)}
+                                        className={`p-3 rounded-lg text-center transition-all border ${isSelected
+                                            ? "bg-copper-red text-white shadow-lg border-copper-red"
+                                            : "bg-gray-50 hover:bg-gray-100 border-transparent"
+                                          }`}
+                                      >
+                                        {time}
+                                      </button>
+                                    );
+                                  })
+                                ) : (
+                                  <div className="col-span-full text-center text-gray-500 py-4">
+                                    No hay horarios disponibles.
+                                  </div>
+                                )}
+                              </div>
+                            </div>
                           )}
-                        </div>
-                      </CardContent>
-                    </Card>
+                        </CardContent>
+                      </Card>
+
+                      <Card className="bg-white/85 backdrop-blur-sm">
+                        <CardContent className="p-6">
+                          <h3 className="font-semibold text-lg mb-4 text-center lg:text-left">
+                            Elige tu estilista
+                          </h3>
+                          <div className="grid sm:grid-cols-2 gap-4">
+                            {staffData.map((staff) => {
+                              const isSelected = selectedStaff === staff.id;
+                              return (
+                                <Card
+                                  key={staff.id}
+                                  className={`cursor-pointer transition-all ${isSelected
+                                      ? "bg-copper-red/10 border-2 border-copper-red"
+                                      : "bg-white/80 border-2 border-transparent hover:border-copper-red/50"
+                                    }`}
+                                  onClick={() => setSelectedStaff(staff.id)}
+                                >
+                                  <CardContent className="p-5 text-center lg:text-left space-y-1">
+                                    <div className="flex items-center justify-between gap-2">
+                                      <h3 className="font-semibold text-base text-[#1f1a1c]">
+                                        {staff.name}
+                                      </h3>
+                                      {isSelected && (
+                                        <CheckCircle2 className="text-copper-red" size={18} />
+                                      )}
+                                    </div>
+                                    <p className="text-sm text-gray-600">{staff.specialty || 'Especialista'}</p>
+                                  </CardContent>
+                                </Card>
+                              );
+                            })}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+
+                    {/* Summary Sidebar */}
+                    <div className="lg:col-span-1">
+                      <Card className="bg-white/90 backdrop-blur-sm sticky top-24 border-copper-red/20 shadow-lg">
+                        <CardContent className="p-6 space-y-4">
+                          <h3 className="font-semibold text-lg border-b pb-2">Resumen</h3>
+
+                          {/* Selected Services */}
+                          {selectedServices.length > 0 && (
+                            <div>
+                              <p className="text-xs font-bold text-gray-500 uppercase mb-2">Servicios</p>
+                              <ul className="space-y-2">
+                                {getSelectedServices().map(s => (
+                                  <li key={s.id} className="text-sm flex justify-between">
+                                    <span>{s.name}</span>
+                                    <span className="font-semibold">{formatPrice(s.price)}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+
+                          {/* Selected Promotion */}
+                          {selectedPromotions.length > 0 && (
+                            <div>
+                              <p className="text-xs font-bold text-gray-500 uppercase mb-2">Promociones</p>
+                              <div className="space-y-2">
+                                {selectedPromotions.map(promoId => {
+                                  const promo = promotionsData.find(p => String(p.id) === promoId);
+                                  return promo ? (
+                                    <div key={promo.id} className="bg-pink-50 p-3 rounded-lg border border-pink-100">
+                                      <p className="font-bold text-copper-red">{promo.name}</p>
+                                      <p className="text-xs text-gray-600 mt-1">{promo.description}</p>
+                                    </div>
+                                  ) : null;
+                                })}
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="border-t pt-3 mt-2">
+                            <div className="flex justify-between text-sm mb-1">
+                              <span>Duración:</span>
+                              <span>{duration} min</span>
+                            </div>
+                            <div className="flex justify-between font-bold text-lg">
+                              <span>Total:</span>
+                              <span className="text-copper-red">{formatPrice(total)}</span>
+                            </div>
+                            {selectedPromotions.length > 0 && (
+                              <p className="text-xs text-gray-400 mt-1 italic">
+                                * Las promociones no afectan el total calculado aquí.
+                              </p>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
                   </div>
-                </div>
                 )}
 
                 <div className="flex flex-col sm:flex-row gap-4 justify-between">
                   <Link href="/servicios" className="w-full sm:w-auto">
                     <Button variant="outline" className="w-full">
-                        <ChevronLeft className="mr-2" />
-                        Atrás
+                      <ChevronLeft className="mr-2" />
+                      Atrás
                     </Button>
                   </Link>
                   <Button
@@ -804,7 +811,7 @@ function ReservarForm() {
                               </div>
                             ))}
                             {getSelectedServices().length === 0 && selectedPromotions.length === 0 && (
-                               <p className="text-sm text-gray-400 italic">Ningún servicio seleccionado</p>
+                              <p className="text-sm text-gray-400 italic">Ningún servicio seleccionado</p>
                             )}
                           </div>
                         </div>
@@ -815,17 +822,17 @@ function ReservarForm() {
                               PROMOCIONES
                             </h4>
                             <div className="space-y-3">
-                                {selectedPromotions.map(promoId => {
-                                    const promo = promotionsData.find(p => String(p.id) === promoId);
-                                    return promo ? (
-                                    <div key={promo.id} className="text-sm">
-                                        <div className="flex justify-between">
-                                        <span className="font-semibold text-copper-red">{promo.name}</span>
-                                        </div>
-                                        <p className="text-xs text-gray-500 mt-1">{promo.description}</p>
+                              {selectedPromotions.map(promoId => {
+                                const promo = promotionsData.find(p => String(p.id) === promoId);
+                                return promo ? (
+                                  <div key={promo.id} className="text-sm">
+                                    <div className="flex justify-between">
+                                      <span className="font-semibold text-copper-red">{promo.name}</span>
                                     </div>
-                                    ) : null;
-                                })}
+                                    <p className="text-xs text-gray-500 mt-1">{promo.description}</p>
+                                  </div>
+                                ) : null;
+                              })}
                             </div>
                           </div>
                         )}

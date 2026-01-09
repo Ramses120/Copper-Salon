@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +32,7 @@ import {
 
 interface Booking {
   id: string;
+  customerId?: string;
   clientName: string;
   clientPhone: string;
   clientEmail?: string;
@@ -78,7 +80,7 @@ interface Category {
 const TimeSelect = ({ value, onChange }: { value: string, onChange: (val: string) => void }) => {
   // value is "HH:mm"
   const [hours, minutes] = value ? value.split(':').map(Number) : [9, 0];
-  
+
   const period = hours >= 12 ? 'PM' : 'AM';
   const displayHours = hours % 12 || 12;
   const displayMinutes = minutes;
@@ -86,7 +88,7 @@ const TimeSelect = ({ value, onChange }: { value: string, onChange: (val: string
   const handleChange = (type: 'h' | 'm' | 'p', val: string) => {
     let newH = hours;
     let newM = minutes;
-    
+
     if (type === 'h') {
       const h = parseInt(val);
       if (period === 'PM') {
@@ -100,7 +102,7 @@ const TimeSelect = ({ value, onChange }: { value: string, onChange: (val: string
       if (val === 'AM' && hours >= 12) newH -= 12;
       if (val === 'PM' && hours < 12) newH += 12;
     }
-    
+
     const strH = newH.toString().padStart(2, '0');
     const strM = newM.toString().padStart(2, '0');
     onChange(`${strH}:${strM}`);
@@ -108,27 +110,27 @@ const TimeSelect = ({ value, onChange }: { value: string, onChange: (val: string
 
   return (
     <div className="flex gap-1 items-center">
-      <select 
-        value={displayHours} 
+      <select
+        value={displayHours}
         onChange={(e) => handleChange('h', e.target.value)}
         className="border rounded p-1 text-sm bg-white h-10"
       >
-        {Array.from({length: 12}, (_, i) => i + 1).map(h => (
+        {Array.from({ length: 12 }, (_, i) => i + 1).map(h => (
           <option key={h} value={h}>{h}</option>
         ))}
       </select>
       <span>:</span>
-      <select 
-        value={displayMinutes} 
+      <select
+        value={displayMinutes}
         onChange={(e) => handleChange('m', e.target.value)}
         className="border rounded p-1 text-sm bg-white h-10"
       >
-        {Array.from({length: 12}, (_, i) => i * 5).map(m => (
+        {Array.from({ length: 12 }, (_, i) => i * 5).map(m => (
           <option key={m} value={m}>{m.toString().padStart(2, '0')}</option>
         ))}
       </select>
-      <select 
-        value={period} 
+      <select
+        value={period}
         onChange={(e) => handleChange('p', e.target.value)}
         className="border rounded p-1 text-sm bg-white h-10"
       >
@@ -140,9 +142,24 @@ const TimeSelect = ({ value, onChange }: { value: string, onChange: (val: string
 };
 
 export default function AdminReservasPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center h-96">
+          <Loader2 className="animate-spin text-gray-500" />
+        </div>
+      }
+    >
+      <AdminReservasContent />
+    </Suspense>
+  );
+}
+
+function AdminReservasContent() {
+  const searchParams = useSearchParams();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("confirmed");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("all");
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);
@@ -153,11 +170,14 @@ export default function AdminReservasPage() {
   const [services, setServices] = useState<Service[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
-  
+
   // Customer check states
   const [customerStatus, setCustomerStatus] = useState<{ exists: boolean; customer?: any } | null>(null);
   const [checkingCustomer, setCheckingCustomer] = useState(false);
   const [savingCustomer, setSavingCustomer] = useState(false);
+  const [recurrenceDays, setRecurrenceDays] = useState<string>("");
+  const [suggestedDate, setSuggestedDate] = useState<string | null>(null);
+  const [lastCustomerBooking, setLastCustomerBooking] = useState<Booking | null>(null);
 
   const [formData, setFormData] = useState({
     clientName: "",
@@ -168,7 +188,23 @@ export default function AdminReservasPage() {
     staffId: "",
     serviceIds: [] as string[],
     notes: "",
+    customerId: "",
   });
+
+  const normalizeTime = (time?: string | null) => {
+    if (!time) return "";
+    const [h, m] = time.split(":");
+    return `${(h || "00").padStart(2, "0")}:${(m || "00").padStart(2, "0")}`;
+  };
+
+  const formatTime12Hour = (time24: string) => {
+    if (!time24) return "";
+    const [hours, minutes] = time24.split(":");
+    const h = parseInt(hours, 10);
+    const ampm = h >= 12 ? "PM" : "AM";
+    const h12 = h % 12 || 12;
+    return `${h12}:${minutes} ${ampm}`;
+  };
 
   // Check customer when selectedBooking changes
   useEffect(() => {
@@ -209,7 +245,7 @@ export default function AdminReservasPage() {
           notes: `Cliente creado desde reserva`,
         }),
       });
-      
+
       if (res.ok) {
         const newCustomer = await res.json();
         setCustomerStatus({ exists: true, customer: newCustomer });
@@ -228,29 +264,28 @@ export default function AdminReservasPage() {
   };
 
 
-  // Cargar reservas y datos iniciales
-  useEffect(() => {
-    fetchBookings();
-    fetchStaffAndServices();
-  }, []);
-
-  const fetchBookings = async () => {
+  const fetchBookings = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch("/api/bookings");
       const data = (await response.json()) as { bookings: Booking[] };
 
       if (response.ok) {
-        setBookings(data.bookings || []);
+        const normalized = (data.bookings || []).map((b) => ({
+          ...b,
+          startTime: normalizeTime(b.startTime),
+          endTime: normalizeTime(b.endTime),
+        }));
+        setBookings(normalized);
       }
     } catch (error) {
       console.error("Error fetching bookings:", error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [setLoading, setBookings]);
 
-  const fetchStaffAndServices = async () => {
+  const fetchStaffAndServices = useCallback(async () => {
     try {
       const [staffRes, categoriesRes, servicesRes] = await Promise.all([
         fetch("/api/staff"),
@@ -277,13 +312,13 @@ export default function AdminReservasPage() {
       if (servicesRes.ok) {
         const servicesData = await servicesRes.json();
         const servicesList = servicesData.services || [];
-        
+
         // Nest services into categories
         cats = cats.map((cat) => ({
           ...cat,
-          services: servicesList.filter((s: any) => 
-            (s.category?.id === cat.id) || 
-            (s.categoryId === cat.id) || 
+          services: servicesList.filter((s: any) =>
+            (s.category?.id === cat.id) ||
+            (s.categoryId === cat.id) ||
             (s.category_id === cat.id) ||
             (s.categoryId === cat.id.toString()) // Handle string/number mismatch
           )
@@ -291,7 +326,7 @@ export default function AdminReservasPage() {
       }
 
       setCategories(cats);
-        
+
       // Expandir primera categoría
       if (cats.length > 0) {
         setExpandedCategories({ [cats[0].id]: true });
@@ -299,21 +334,115 @@ export default function AdminReservasPage() {
     } catch (error) {
       console.error("Error fetching staff and categories:", error);
     }
+  }, [setStaff, setCategories, setExpandedCategories]);
+
+  // Cargar reservas y datos iniciales
+  useEffect(() => {
+    fetchBookings();
+    fetchStaffAndServices();
+  }, [fetchBookings, fetchStaffAndServices]);
+
+  const prefillCustomer = async (customerId: string) => {
+    try {
+      const res = await fetch(`/api/customers/${customerId}`);
+      if (!res.ok) return;
+      const customer = await res.json();
+      setFormData((prev) => ({
+        ...prev,
+        customerId,
+        clientName: customer.name || "",
+        clientPhone: customer.phone || "",
+        clientEmail: customer.email || "",
+        notes: customer.notes || "",
+      }));
+      setSelectedBooking(null);
+      setEditingBooking(null);
+      setShowCreateForm(true);
+    } catch (error) {
+      console.error("Error prefilling customer:", error);
+    }
   };
 
-  const filteredBookings = bookings.filter((booking) => {
-    const matchesSearch =
-      booking.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      booking.clientPhone.includes(searchTerm);
-    const matchesStatus =
-      statusFilter === "all" || booking.status === statusFilter;
-    const matchesDate =
-      dateFilter === "all" ||
-      (dateFilter === "today" && new Date(booking.date).toDateString() === new Date().toDateString()) ||
-      (dateFilter === "tomorrow" && new Date(booking.date).toDateString() === new Date(new Date().setDate(new Date().getDate() + 1)).toDateString()) ||
-      (dateFilter === "pending" && booking.status === "pending");
-    return matchesSearch && matchesStatus && matchesDate;
-  });
+  const findLastBookingForCustomer = useCallback((customerId: string) => {
+    const relevant = bookings
+      .filter((b) => b.customerId === customerId && b.status !== "cancelled")
+      .slice()
+      .sort((a, b) => {
+        const dateA = new Date(`${a.date}T${normalizeTime(a.startTime)}`).getTime();
+        const dateB = new Date(`${b.date}T${normalizeTime(b.startTime)}`).getTime();
+        return dateB - dateA;
+      });
+    return relevant[0] || null;
+  }, [bookings]);
+
+  useEffect(() => {
+    const customerIdParam = searchParams?.get("customerId");
+    if (customerIdParam) {
+      prefillCustomer(customerIdParam);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (!formData.customerId) {
+      setLastCustomerBooking(null);
+      return;
+    }
+    const last = findLastBookingForCustomer(formData.customerId);
+    setLastCustomerBooking(last);
+  }, [formData.customerId, bookings, findLastBookingForCustomer]);
+
+  useEffect(() => {
+    if (!formData.customerId || !recurrenceDays) {
+      setSuggestedDate(null);
+      return;
+    }
+
+    const baseDate = lastCustomerBooking
+      ? new Date(`${lastCustomerBooking.date}T${normalizeTime(lastCustomerBooking.startTime)}`)
+      : new Date();
+
+    baseDate.setDate(baseDate.getDate() + Number(recurrenceDays));
+    setSuggestedDate(baseDate.toISOString().split("T")[0]);
+  }, [formData.customerId, recurrenceDays, lastCustomerBooking]);
+
+  const applySuggestedDate = () => {
+    if (!suggestedDate) return;
+    setFormData((prev) => ({
+      ...prev,
+      date: suggestedDate,
+      startTime: prev.startTime || normalizeTime(lastCustomerBooking?.startTime || "09:00"),
+      staffId: prev.staffId || lastCustomerBooking?.staffId || "",
+    }));
+  };
+
+  const filteredBookings = bookings
+    .filter((booking) => {
+      const matchesSearch =
+        booking.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        booking.clientPhone.includes(searchTerm);
+      const matchesStatus =
+        statusFilter === "all" || booking.status === statusFilter;
+      const matchesDate =
+        dateFilter === "all" ||
+        (dateFilter === "today" && new Date(booking.date).toDateString() === new Date().toDateString()) ||
+        (dateFilter === "tomorrow" && new Date(booking.date).toDateString() === new Date(new Date().setDate(new Date().getDate() + 1)).toDateString()) ||
+        (dateFilter === "pending" && booking.status === "pending");
+      return matchesSearch && matchesStatus && matchesDate;
+    })
+    .sort((a, b) => {
+      // Pending bookings first
+      if (a.status === b.status) {
+        // same status -> sort by date then startTime
+        const dateA = new Date(a.date).getTime();
+        const dateB = new Date(b.date).getTime();
+        if (dateA !== dateB) return dateA - dateB;
+        return a.startTime.localeCompare(b.startTime);
+      }
+      if (a.status === "pending") return -1;
+      if (b.status === "pending") return 1;
+      // otherwise keep original relative order (confirmed/completed/cancelled)
+      return 0;
+    });
 
   const getStatusBadge = (estado: string) => {
     switch (estado) {
@@ -355,24 +484,66 @@ export default function AdminReservasPage() {
       setUpdating(true);
       const response = await fetch(`/api/bookings/${id}`, {
         method: "PATCH",
+        credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
       });
 
+      // try to parse JSON body, fallback to raw text for better error messages
+      let payload: any = {};
+      let rawText: string | null = null;
+      try {
+        payload = await response.json();
+      } catch (e) {
+        try {
+          rawText = await response.text();
+        } catch (e2) {
+          rawText = null;
+        }
+        payload = rawText ? { raw: rawText } : {};
+      }
+
       if (response.ok) {
+        // API returns updated booking in payload.booking
+        const updated = payload.booking || { id, status: newStatus };
         setBookings(
-          bookings.map((b) => (b.id === id ? { ...b, status: newStatus as any } : b))
+          bookings.map((b) => (b.id === id ? { ...b, status: updated.status as any } : b))
         );
         if (selectedBooking?.id === id) {
-          setSelectedBooking({ ...selectedBooking, status: newStatus as any });
+          setSelectedBooking({ ...selectedBooking, status: updated.status as any });
         }
-        // Refresh stats if needed, or just alert
+
+        // Notify other admin components (dashboard, calendar, alerts) to refresh immediately
+        try {
+          if (typeof window !== "undefined") {
+            try {
+              const bc = new BroadcastChannel("bookings");
+              bc.postMessage({ type: "updated", id, status: updated.status });
+              bc.close();
+            } catch (e) {
+              // Ignore if BroadcastChannel not available
+            }
+            window.dispatchEvent(new CustomEvent("bookings-updated", { detail: { id, status: updated.status } }));
+          }
+        } catch (e) {
+          console.warn("Could not broadcast booking update", e);
+        }
       } else {
-        alert("Error al actualizar estado");
+        // Show API-provided error message when available; include raw text or statusText if present
+        const errMsg = payload?.error || payload?.message || payload?.details || payload?.raw || response.statusText || `Error al actualizar estado (status ${response.status})`;
+        if (response.status === 401) {
+          alert(errMsg + " Por favor inicia sesión como administrador.");
+        } else {
+          alert(errMsg);
+        }
+        // Avoid passing null into console.error because some console interceptors
+        // assume arguments have a stack property and choke on null/undefined.
+        const logRawText = rawText ?? "[no raw response body]";
+        console.error("Update status error:", response.status, payload, logRawText);
       }
     } catch (error) {
       console.error("Error updating booking:", error);
-      alert("Error de conexión");
+      alert("Error de conexión al servidor. Intenta de nuevo.");
     } finally {
       setUpdating(false);
     }
@@ -385,16 +556,38 @@ export default function AdminReservasPage() {
       setUpdating(true);
       const response = await fetch(`/api/bookings/${id}`, {
         method: "DELETE",
+        credentials: "same-origin",
       });
+
+      const payload = await response.json().catch(() => ({}));
 
       if (response.ok) {
         setBookings(bookings.filter((b) => b.id !== id));
         setSelectedBooking(null);
+        // notify other components
+        try {
+          if (typeof window !== "undefined") {
+            try {
+              const bc = new BroadcastChannel("bookings");
+              bc.postMessage({ type: "deleted", id });
+              bc.close();
+            } catch (e) { }
+            window.dispatchEvent(new CustomEvent("bookings-updated", { detail: { id, action: "deleted" } }));
+          }
+        } catch (e) { }
         alert("Reserva eliminada exitosamente");
+      } else {
+        const errMsg = payload?.error || payload?.message || "Error al eliminar la reserva";
+        if (response.status === 401) {
+          alert("No autorizado. Por favor inicia sesión como administrador.");
+        } else {
+          alert(errMsg);
+        }
+        console.error("Delete booking error:", response.status, payload);
       }
     } catch (error) {
       console.error("Error deleting booking:", error);
-      alert("Error al eliminar la reserva");
+      alert("Error de conexión al servidor. Intenta de nuevo.");
     } finally {
       setUpdating(false);
     }
@@ -410,7 +603,10 @@ export default function AdminReservasPage() {
       staffId: booking.staffId ? String(booking.staffId) : "",
       serviceIds: booking.services.map((s) => String(s.service.id)),
       notes: booking.notes || "",
+      customerId: booking.customerId || "",
     });
+    setRecurrenceDays("");
+    setSuggestedDate(null);
     setEditingBooking(booking);
     setShowCreateForm(true);
     setSelectedBooking(null);
@@ -418,7 +614,7 @@ export default function AdminReservasPage() {
 
   const handleCreateBooking = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.clientName || !formData.clientPhone || !formData.date || !formData.startTime || !formData.staffId || formData.serviceIds.length === 0) {
       alert("Por favor completa todos los campos requeridos");
       return;
@@ -426,13 +622,14 @@ export default function AdminReservasPage() {
 
     try {
       setUpdating(true);
-      const url = editingBooking 
-        ? `/api/bookings/${editingBooking.id}` 
+      const url = editingBooking
+        ? `/api/bookings/${editingBooking.id}`
         : "/api/bookings";
       const method = editingBooking ? "PUT" : "POST";
 
       const response = await fetch(url, {
         method,
+        credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           clientName: formData.clientName,
@@ -443,9 +640,11 @@ export default function AdminReservasPage() {
           staffId: formData.staffId,
           serviceIds: formData.serviceIds,
           notes: formData.notes || null,
+          customerId: formData.customerId || undefined,
           status: "confirmed", // Admin siempre crea como confirmado
         }),
       });
+      const payload = await response.json().catch(() => ({}));
 
       if (response.ok) {
         alert(editingBooking ? "Reserva actualizada exitosamente" : "Reserva creada exitosamente (confirmada)");
@@ -460,12 +659,30 @@ export default function AdminReservasPage() {
           staffId: "",
           serviceIds: [],
           notes: "",
+          customerId: "",
         });
+        setRecurrenceDays("");
+        setSuggestedDate(null);
+        // Notify other components
+        try {
+          if (typeof window !== "undefined") {
+            try {
+              const bc = new BroadcastChannel("bookings");
+              bc.postMessage({ type: editingBooking ? "updated" : "created", booking: payload.booking || null });
+              bc.close();
+            } catch (e) { }
+            window.dispatchEvent(new CustomEvent("bookings-updated", { detail: { action: editingBooking ? "updated" : "created", booking: payload.booking || null } }));
+          }
+        } catch (e) { }
         fetchBookings();
       } else {
-        const error = await response.json();
-        console.error("Error response:", error);
-        alert(`Error: ${error.error}\nDetalles: ${error.details || error.message || "Sin detalles"}`);
+        const errMsg = payload?.error || payload?.message || "Error al guardar la reserva";
+        if (response.status === 401) {
+          alert("No autorizado. Por favor inicia sesión como administrador.");
+        } else {
+          alert(errMsg);
+        }
+        console.error("Error response:", response.status, payload);
       }
     } catch (error) {
       console.error("Error saving booking:", error);
@@ -492,21 +709,12 @@ export default function AdminReservasPage() {
     }));
   };
 
-  const formatTime12Hour = (time24: string) => {
-    if (!time24) return "";
-    const [hours, minutes] = time24.split(":");
-    const h = parseInt(hours, 10);
-    const ampm = h >= 12 ? "PM" : "AM";
-    const h12 = h % 12 || 12;
-    return `${h12}:${minutes} ${ampm}`;
-  };
-
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-gray-900">Gestión de Reservas</h1>
-        <Button 
+        <Button
           onClick={() => {
             setEditingBooking(null);
             setFormData({
@@ -518,7 +726,10 @@ export default function AdminReservasPage() {
               staffId: "",
               serviceIds: [],
               notes: "",
+              customerId: "",
             });
+            setRecurrenceDays("");
+            setSuggestedDate(null);
             setShowCreateForm(true);
           }}
           className="bg-pink-600 hover:bg-pink-700"
@@ -598,8 +809,8 @@ export default function AdminReservasPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Hora *
                   </label>
-                  <TimeSelect 
-                    value={formData.startTime} 
+                  <TimeSelect
+                    value={formData.startTime}
                     onChange={(value) => setFormData({ ...formData, startTime: value })}
                   />
                 </div>
@@ -624,12 +835,11 @@ export default function AdminReservasPage() {
                           <span className="font-medium text-gray-700">{category.name}</span>
                           <ChevronDown
                             size={18}
-                            className={`transition ${
-                              expandedCategories[category.id] ? "rotate-180" : ""
-                            }`}
+                            className={`transition ${expandedCategories[category.id] ? "rotate-180" : ""
+                              }`}
                           />
                         </button>
-                        
+
                         {expandedCategories[category.id] && category.services && (
                           <div className="border-t p-3 space-y-2 bg-gray-50">
                             {category.services.length === 0 ? (
@@ -668,6 +878,46 @@ export default function AdminReservasPage() {
                   </p>
                 )}
               </div>
+
+              {formData.customerId && (
+                <div className="border rounded-lg p-3 bg-white/70 space-y-2">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div>
+                      <p className="text-sm font-medium text-gray-700">Frecuencia sugerida</p>
+                      <p className="text-xs text-gray-500">Aplica un recordatorio rápido (10, 15 o 30 días)</p>
+                    </div>
+                    <Select value={recurrenceDays} onValueChange={setRecurrenceDays}>
+                      <SelectTrigger className="w-36">
+                        <SelectValue placeholder="Elegir" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="10">Cada 10 días</SelectItem>
+                        <SelectItem value="15">Cada 15 días</SelectItem>
+                        <SelectItem value="30">Cada 30 días</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {lastCustomerBooking && (
+                    <p className="text-xs text-gray-600">
+                      Última cita: {new Date(lastCustomerBooking.date).toLocaleDateString("es-ES")}{" "}
+                      {formatTime12Hour(normalizeTime(lastCustomerBooking.startTime))} con{" "}
+                      {lastCustomerBooking.staff?.name || "Sin asignar"}
+                    </p>
+                  )}
+
+                  {suggestedDate && (
+                    <div className="flex items-center justify-between gap-3 flex-wrap">
+                      <p className="text-sm text-gray-800">
+                        Fecha sugerida: <span className="font-semibold">{new Date(suggestedDate).toLocaleDateString("es-ES")}</span>
+                      </p>
+                      <Button type="button" variant="outline" size="sm" onClick={applySuggestedDate}>
+                        Usar fecha sugerida
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Notas */}
               <div>

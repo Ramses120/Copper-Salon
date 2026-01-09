@@ -14,6 +14,7 @@ import {
   Menu,
   X,
 } from "lucide-react";
+import AdminBookingAlert from "./AdminBookingAlert";
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -34,11 +35,11 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   const checkAuth = useCallback(async () => {
     if (!mounted) return;
-    
+
     try {
       const response = await fetch("/api/auth/session");
       const data = await response.json();
-      
+
       if (!data.user && pathname !== "/admin/login") {
         router.push("/admin/login");
       } else {
@@ -99,9 +100,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
       {/* Sidebar */}
       <aside
-        className={`fixed top-0 left-0 h-full w-64 bg-gray-900 text-white z-40 transition-transform duration-300 ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        } lg:translate-x-0`}
+        className={`fixed top-0 left-0 h-full w-64 bg-gray-900 text-white z-40 transition-transform duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"
+          } lg:translate-x-0`}
       >
         <div className="p-6 border-b border-gray-800">
           <h1 className="font-times text-2xl font-bold text-copper-red">
@@ -124,11 +124,10 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                       router.push(item.path);
                       setSidebarOpen(false);
                     }}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                      isActive
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive
                         ? "bg-copper-red text-white"
                         : "text-gray-300 hover:bg-gray-800"
-                    }`}
+                      }`}
                   >
                     <Icon size={20} />
                     <span>{item.name}</span>
@@ -167,7 +166,10 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
               <p className="text-gray-600">Cargando...</p>
             </div>
           ) : (
-            children
+            <>
+              <AdminBookingAlert />
+              {children}
+            </>
           )}
         </div>
       </main>

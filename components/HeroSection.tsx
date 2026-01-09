@@ -107,30 +107,37 @@ export default function HeroSection() {
 
   const slide = slides[currentSlide];
 
+  const goNext = () => setCurrentSlide((prev) => (prev + 1) % slides.length);
+  const goPrev = () => setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
+
   return (
     <section
       suppressHydrationWarning
-      className="relative overflow-hidden h-[885px] md:h-[995px] flex items-center"
-      style={{
-        backgroundImage: `url(${hero.src})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        backgroundRepeat: "no-repeat",
-      }}
+      className="relative overflow-hidden md:h-[995px] flex md:items-center items-start py-8 md:py-0 bg-gradient-to-b from-[#ffe6f2] via-[#fff1f6] to-white"
     >
+      {/* Background image only on md+ */}
+      <div
+        className="absolute inset-0 hidden md:block"
+        style={{
+          backgroundImage: `url(${hero.src})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat",
+        }}
+      />
       <style>{slideInStyles}</style>
-      
+
       {/* Vector overlay con fade prolongado en entrada y rápido en salida */}
       <div
         key={`vector-${currentSlide}`}
-        className="absolute inset-0 vector-zoom-in"
+        className="absolute inset-0 vector-zoom-in hidden md:block"
         style={{
           backgroundImage: `url(${slide.vector})`,
           backgroundSize: "cover",
           backgroundPosition: "center",
         }}
       />
-      
+
       {/* Content container */}
       <div className="container mx-auto px-4 pt-8 pb-8 md:pt-12 md:pb-12 relative z-10">
         <div className="w-full max-w-4xl">
@@ -143,14 +150,14 @@ export default function HeroSection() {
             <div className="space-y-3">
               {slide.h2 ? (
                 <div className="space-y-1">
-                  <h2 className="font-times text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-[#d63d7a] leading-[1.08] max-w-3xl">
+                  <h2 className="font-times text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-bold text-[#d63d7a] leading-[1.08] max-w-3xl">
                     Copper
                   </h2>
                   <div className="flex items-baseline gap-1 max-w-3xl">
                     <h2 className="font-times text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-black leading-[1.08]">
                       Beauty Salon
                     </h2>
-                    <h2 className="font-playfair text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-black leading-[1.08]">
+                    <h2 className="font-playfair text-2xl sm:text-3xl md:text-5xl lg:text-6xl font-bold text-black leading-[1.08]">
                       &
                     </h2>
                     <h2 className="font-times text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-black leading-[1.08]">
@@ -162,7 +169,7 @@ export default function HeroSection() {
                   )}
                 </div>
               ) : (
-                <h3 className="font-serif text-3xl sm:text-4xl md:text-4xl lg:text-5xl font-bold text-black leading-[1.08] max-w-3xl">
+                <h3 className="font-serif text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-black leading-[1.08] max-w-3xl">
                   {slide.h3}
                   {currentSlide < 2 && (
                     <div className="h-1.5 w-16 bg-gradient-to-r from-[#d63d7a] to-transparent mt-3 rounded-full"></div>
@@ -174,11 +181,11 @@ export default function HeroSection() {
             {/* Sub heading with full content */}
             <div className="space-y-2 max-w-2xl">
               {slide.h2 ? (
-                <h3 className="text-base sm:text-lg md:text-lg lg:text-lg text-black font-normal leading-relaxed">
+                <h3 className="text-sm sm:text-base md:text-lg lg:text-lg text-black font-normal leading-relaxed">
                   {slide.h3}
                 </h3>
               ) : (
-                <h4 className="text-base sm:text-lg md:text-lg lg:text-lg text-black font-normal leading-relaxed">
+                <h4 className="text-sm sm:text-base md:text-lg lg:text-lg text-black font-normal leading-relaxed">
                   {slide.h4}
                 </h4>
               )}
@@ -195,7 +202,7 @@ export default function HeroSection() {
             {slide.showButton && (
               <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full pt-1">
                 <Link href="/servicios">
-                  <Button className="text-sm sm:text-base md:text-lg px-5 py-3 sm:px-6 sm:py-4 md:px-8 md:py-5 lg:px-10 lg:py-6 rounded-full bg-white text-[#2c1e21] hover:bg-[#d63d7a] hover:text-white transition-all font-montserrat font-semibold">
+                  <Button className="text-sm sm:text-base md:text-lg px-5 py-3 sm:px-6 sm:py-4 md:px-8 md:py-5 lg:px-10 lg:py-6 rounded-full bg-[#d63d7a] text-white md:bg-white md:text-[#2c1e21] hover:bg-[#d63d7a] hover:text-white active:bg-black active:text-white transition-all font-montserrat font-semibold">
                     Reserva tu cita
                   </Button>
                 </Link>
@@ -213,11 +220,10 @@ export default function HeroSection() {
             onClick={() => {
               setCurrentSlide(index);
             }}
-            className={`w-3 h-3 rounded-full transition-all duration-300 ${
-              index === currentSlide
-                ? "bg-white w-8"
-                : "bg-white/50 hover:bg-white/75"
-            }`}
+            className={`w-3 h-3 rounded-full transition-all duration-300 ${index === currentSlide
+              ? "bg-white w-8"
+              : "bg-white/50 hover:bg-white/75"
+              }`}
             aria-label={`Slide ${index + 1}`}
           />
         ))}
@@ -229,30 +235,9 @@ export default function HeroSection() {
         <span className="text-white/60"> \ {slides.length}</span>
       </div>
 
-      {/* Navigation buttons */}
-      {/* Previous button */}
+      {/* Navigation button */}
       <button
-        onClick={() => {
-          setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
-        }}
-        className="absolute bottom-8 right-24 z-20 flex items-center justify-center w-10 h-10 rounded-full border border-white/50 hover:border-white transition-all hover:bg-white/10 group"
-        aria-label="Previous slide"
-      >
-        <svg
-          className="w-5 h-5 text-white transform rotate-180 group-hover:translate-x-1 transition-transform"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <polyline points="15 18 9 12 15 6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </button>
-
-      {/* Next button */}
-      <button
-        onClick={() => {
-          setCurrentSlide((prev) => (prev + 1) % slides.length);
-        }}
+        onClick={goNext}
         className="absolute bottom-8 right-8 z-20 flex items-center justify-center w-10 h-10 rounded-full border border-white/50 hover:border-white transition-all hover:bg-white/10 group"
         aria-label="Next slide"
       >

@@ -12,7 +12,7 @@ if (!supabaseUrl || !supabaseKey) {
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-const ADMIN_EMAIL = "admin@copperbeauty.com";
+const ADMIN_EMAIL = "admin@yourdomain.com";
 const ADMIN_PASSWORD = "admin123@";
 
 async function setupAdmin() {

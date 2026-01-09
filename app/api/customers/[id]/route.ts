@@ -1,5 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { createClient } from "@supabase/supabase-js";
+import { cookies } from "next/headers";
+
+async function getAuthenticatedSupabase() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("sb-access-token")?.value;
+
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    token
+      ? { global: { headers: { Authorization: `Bearer ${token}` } } }
+      : {}
+  );
+}
 
 // GET - Obtener cliente por ID
 export async function GET(
@@ -8,10 +22,15 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    const supabase = await getAuthenticatedSupabase();
 
-    const customer = await db.customer.findUnique({
-      where: { id }
-    });
+    const { data: customer, error } = await supabase
+      .from("customers")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (error && error.code !== "PGRST116") throw error;
 
     if (!customer) {
       return NextResponse.json(
@@ -30,7 +49,7 @@ export async function GET(
   }
 }
 
-// PATCH - Actualizar cliente
+// PATCH - Actualizar cliente + activar/desactivar
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -38,7 +57,7 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await req.json();
-    const { name, phone, notes } = body;
+    const { name, phone, notes, active } = body;
 
     if (!name || !phone) {
       return NextResponse.json(
@@ -47,16 +66,66 @@ export async function PATCH(
       );
     }
 
-    const updatedCustomer = await db.customer.update({
-      where: { id },
-      data: {
+    const supabase = await getAuthenticatedSupabase();
+
+    // Traer cliente actual para saber si cambia estado
+    const { data: existing, error: existingError } = await supabase
+      .from("customers")
+      .select("*")
+      .eq("id", id)
+      .single();
+    if (existingError) throw existingError;
+    if (!existing) {
+      return NextResponse.json({ error: "Cliente no encontrado" }, { status: 404 });
+    }
+
+    const willDeactivate = active === false && existing.active !== false;
+    const willReactivate = active === true && existing.active === false;
+
+    const { data: updated, error } = await supabase
+      .from("customers")
+      .update({
         name,
         phone,
-        notes: notes || ""
-      }
-    });
+        notes: notes ?? "",
+        active: active === undefined ? existing.active : active,
+      })
+      .eq("id", id)
+      .select()
+      .single();
 
-    return NextResponse.json(updatedCustomer);
+    if (error) throw error;
+
+    // Bitácora: agregar o cerrar registro de desactivación
+    if (willDeactivate) {
+      await supabase.from("deactivated_customers").insert({
+        customer_id: id,
+        name: updated?.name,
+        phone: updated?.phone,
+        email: (updated as any)?.email || null,
+        notes: updated?.notes || null,
+        deactivated_at: new Date().toISOString(),
+      });
+    }
+
+    if (willReactivate) {
+      const { data: lastRow } = await supabase
+        .from("deactivated_customers")
+        .select("id")
+        .eq("customer_id", id)
+        .order("deactivated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (lastRow?.id) {
+        await supabase
+          .from("deactivated_customers")
+          .update({ reactivated_at: new Date().toISOString() })
+          .eq("id", lastRow.id);
+      }
+    }
+
+    return NextResponse.json(updated);
   } catch (error) {
     console.error("Error updating customer:", error);
     return NextResponse.json(
@@ -73,10 +142,9 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
+    const supabase = await getAuthenticatedSupabase();
 
-    await db.customer.delete({
-      where: { id }
-    });
+    await supabase.from("customers").delete().eq("id", id);
 
     return NextResponse.json({ success: true });
   } catch (error) {

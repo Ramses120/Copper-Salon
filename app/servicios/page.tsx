@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Clock, Loader2, ChevronDown, Sparkles, Tag } from "lucide-react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
+import NextImage from "next/image";
 
 interface Category {
   id: string;
@@ -21,8 +22,9 @@ interface Service {
   description: string;
   price: number;
   duration_minutes: number;
-  category_id: string;
+  category_id: string | null;
   active: boolean;
+  category?: string | null;
 }
 
 interface Promotion {
@@ -62,32 +64,59 @@ export default function ServicesPage() {
       if (catsRes.ok && servsRes.ok) {
         const catsData: Category[] = await catsRes.json();
         const servsData: { services: Service[] } = await servsRes.json();
-        
-        const servicesList = servsData.services || [];
 
-        // Group services by category
-        const grouped = catsData.map(cat => ({
-          ...cat,
-          services: servicesList.filter(s => String(s.category_id) === String(cat.id) && s.active)
-        })).filter(cat => cat.services.length > 0); // Only show categories with services
+        const servicesList = (servsData.services || []).map((s) => ({
+          ...s,
+          category: s.category || null,
+          category_id: s.category_id ?? null,
+        }));
+
+        const normalize = (str?: string | null) =>
+          (str || "").toString().trim().toLowerCase();
+
+        // Group services by category id or name
+        const grouped = catsData
+          .map((cat) => {
+            const servicesOfCat = servicesList.filter(
+              (s) =>
+                s.active &&
+                (String(s.category_id) === String(cat.id) ||
+                  normalize(s.category) === normalize(cat.name))
+            );
+            return { ...cat, services: servicesOfCat };
+          })
+          .filter((cat) => cat.services.length > 0);
+
+        // Add orphan services (without matching category) under "Otros"
+        const assignedIds = new Set(grouped.flatMap((g) => g.services.map((s) => s.id)));
+        const orphanServices = servicesList.filter((s) => s.active && !assignedIds.has(s.id));
+        if (orphanServices.length > 0) {
+          grouped.push({
+            id: "otros",
+            name: "Otros",
+            description: "Servicios adicionales",
+            display_order: 999,
+            services: orphanServices,
+          });
+        }
 
         setCategories(grouped);
-        
+
         // Set initial expanded category
         if (promosRes.ok) {
-            const promosData = await promosRes.json();
-            const activePromos = promosData.promotions || [];
-            setPromotions(activePromos);
-            
-            // If there are promotions, expand the promotions section by default (we'll use 'promotions' as ID)
-            // Otherwise expand the first category
-            if (activePromos.length > 0) {
-                setExpandedCategory('promotions');
-            } else if (grouped.length > 0) {
-                setExpandedCategory(grouped[0].id);
-            }
-        } else if (grouped.length > 0) {
+          const promosData = await promosRes.json();
+          const activePromos = promosData.promotions || [];
+          setPromotions(activePromos);
+
+          // If there are promotions, expand the promotions section by default (we'll use 'promotions' as ID)
+          // Otherwise expand the first category
+          if (activePromos.length > 0) {
+            setExpandedCategory('promotions');
+          } else if (grouped.length > 0) {
             setExpandedCategory(grouped[0].id);
+          }
+        } else if (grouped.length > 0) {
+          setExpandedCategory(grouped[0].id);
         }
       }
     } catch (error) {
@@ -102,16 +131,16 @@ export default function ServicesPage() {
   };
 
   const toggleService = (serviceId: string) => {
-    setSelectedServices(prev => 
-      prev.includes(serviceId) 
+    setSelectedServices(prev =>
+      prev.includes(serviceId)
         ? prev.filter(id => id !== serviceId)
         : [...prev, serviceId]
     );
   };
 
   const togglePromotion = (promoId: string) => {
-    setSelectedPromotions(prev => 
-      prev.includes(promoId) 
+    setSelectedPromotions(prev =>
+      prev.includes(promoId)
         ? prev.filter(id => id !== promoId)
         : [...prev, promoId]
     );
@@ -122,27 +151,28 @@ export default function ServicesPage() {
       {/* Hero Section */}
       <section className="relative py-20 bg-black text-white overflow-hidden">
         <div className="absolute inset-0 z-0 opacity-40">
-          <img
+          <NextImage
             src="https://images.unsplash.com/photo-1560066984-138dadb4c035?q=80&w=2574"
             alt="Salon Background"
-            className="w-full h-full object-cover"
+            fill
+            className="object-cover"
+            sizes="100vw"
+            priority
           />
         </div>
         <div className="container mx-auto px-4 relative z-10 text-center">
-          <motion.h1 
+          <motion.h1
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="font-times text-5xl md:text-7xl mb-6"
           >
-            Nuestros Servicios
           </motion.h1>
-          <motion.p 
+          <motion.p
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
             className="text-xl text-gray-300 max-w-2xl mx-auto font-light"
           >
-            Experiencias de belleza diseñadas para resaltar tu estilo único
           </motion.p>
         </div>
       </section>
@@ -159,7 +189,7 @@ export default function ServicesPage() {
           </div>
         ) : (
           <div className="max-w-4xl mx-auto space-y-8">
-            
+
             {/* Promotions Section */}
             {promotions.length > 0 && (
               <motion.div
@@ -175,16 +205,16 @@ export default function ServicesPage() {
                     <h2 className="text-2xl font-times font-bold text-pink-800 flex items-center gap-3">
                       <Sparkles className="text-pink-600" size={24} />
                       Promociones Especiales
-                      <Badge className="text-xs font-normal bg-pink-600 text-white hover:bg-pink-700 border-none">
-                        {promotions.length} ofertas
+                      <Badge className="text-xs font-semibold bg-pink-600 text-white hover:bg-pink-700 border-none px-3 py-1 leading-tight flex items-center gap-1">
+                        <span className="inline-block">{promotions.length}</span>
+                        <span className="inline-block">ofertas</span>
                       </Badge>
                     </h2>
                     <p className="text-pink-600/80 mt-1 text-sm">Ofertas por tiempo limitado</p>
                   </div>
                   <ChevronDown
-                    className={`text-pink-400 transition-transform duration-300 ${
-                      expandedCategory === 'promotions' ? "rotate-180" : ""
-                    }`}
+                    className={`text-pink-400 transition-transform duration-300 ${expandedCategory === 'promotions' ? "rotate-180" : ""
+                      }`}
                     size={24}
                   />
                 </button>
@@ -234,13 +264,12 @@ export default function ServicesPage() {
                                     </span>
                                   )}
                                 </div>
-                                <Button 
-                                  size="sm" 
-                                  className={`${
-                                    selectedPromotions.includes(String(promo.id))
-                                      ? "bg-pink-600 hover:bg-pink-700 text-white"
-                                      : "bg-white text-pink-600 border border-pink-200 hover:bg-pink-50"
-                                  }`}
+                                <Button
+                                  size="sm"
+                                  className={`${selectedPromotions.includes(String(promo.id))
+                                    ? "bg-pink-600 hover:bg-pink-700 text-white"
+                                    : "bg-white text-pink-600 border border-pink-200 hover:bg-pink-50"
+                                    }`}
                                   onClick={() => togglePromotion(String(promo.id))}
                                 >
                                   {selectedPromotions.includes(String(promo.id)) ? "Seleccionada" : "Seleccionar"}
@@ -280,9 +309,8 @@ export default function ServicesPage() {
                     )}
                   </div>
                   <ChevronDown
-                    className={`text-gray-400 transition-transform duration-300 ${
-                      expandedCategory === category.id ? "rotate-180" : ""
-                    }`}
+                    className={`text-gray-400 transition-transform duration-300 ${expandedCategory === category.id ? "rotate-180" : ""
+                      }`}
                     size={24}
                   />
                 </button>
@@ -303,8 +331,8 @@ export default function ServicesPage() {
                               key={service.id}
                               className="flex flex-col md:flex-row md:items-center justify-between p-4 bg-white rounded-lg border border-gray-100 hover:border-pink-200 transition-colors group"
                             >
-                              <div className="flex-1 pr-4">
-                                <div className="flex items-center gap-2 mb-1">
+                              <div className="flex-1 md:pr-4 text-center md:text-left">
+                                <div className="flex items-center justify-center md:justify-start gap-2 mb-1">
                                   <h3 className="font-bold text-gray-900 group-hover:text-pink-700 transition-colors">
                                     {service.name}
                                   </h3>
@@ -312,24 +340,23 @@ export default function ServicesPage() {
                                 <p className="text-gray-600 text-sm mb-2">
                                   {service.description}
                                 </p>
-                                <div className="flex items-center gap-4 text-xs text-gray-500">
+                                <div className="flex items-center justify-center md:justify-start gap-4 text-xs text-gray-500">
                                   <span className="flex items-center gap-1">
                                     <Clock size={14} />
                                     {service.duration_minutes} min
                                   </span>
                                 </div>
                               </div>
-                              <div className="flex items-center justify-between md:justify-end gap-4 mt-4 md:mt-0 min-w-[140px]">
+                              <div className="flex items-center justify-center md:justify-end gap-4 mt-4 md:mt-0 min-w-[140px] w-full md:w-auto">
                                 <span className="text-lg font-bold text-gray-900">
                                   ${service.price}
                                 </span>
-                                <Button 
-                                  size="sm" 
-                                  className={`${
-                                    selectedServices.includes(service.id)
-                                      ? "bg-pink-600 hover:bg-pink-700 text-white"
-                                      : "bg-white text-black border border-gray-300 hover:bg-gray-50"
-                                  }`}
+                                <Button
+                                  size="sm"
+                                  className={`${selectedServices.includes(service.id)
+                                    ? "bg-pink-600 hover:bg-pink-700 text-white"
+                                    : "bg-white text-black border border-gray-300 hover:bg-gray-50"
+                                    }`}
                                   onClick={() => toggleService(service.id)}
                                 >
                                   {selectedServices.includes(service.id) ? "Seleccionado" : "Seleccionar"}

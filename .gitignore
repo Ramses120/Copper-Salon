@@ -6,6 +6,7 @@ build
 .vercel
 *.log
 .DS_Store
+._*
 dev.db
 dev.db-journal
 prisma/migrations

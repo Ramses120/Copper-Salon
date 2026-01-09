@@ -1,19 +1,18 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { cookies } from "next/headers";
+import { createUserSupabaseClient, getValidatedSession } from "@/lib/serverAuth";
 
-// Helper para crear cliente autenticado
-async function getAuthenticatedSupabase() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("sb-access-token")?.value;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseAnon = createClient(supabaseUrl, supabaseAnonKey);
 
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    token
-      ? { global: { headers: { Authorization: `Bearer ${token}` } } }
-      : {}
-  );
+// Cliente solo para acciones protegidas.
+async function getProtectedSupabase() {
+  const session = await getValidatedSession();
+  if (!session) {
+    throw new Error("UNAUTHORIZED");
+  }
+  return createUserSupabaseClient(session.token);
 }
 
 export async function GET(
@@ -22,7 +21,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const supabase = await getAuthenticatedSupabase();
+    const supabase = supabaseAnon;
     
     const { data: service, error } = await supabase
       .from('services')
@@ -39,9 +38,10 @@ export async function GET(
 
     return NextResponse.json({ service });
   } catch (error) {
+    const details = (error as any)?.message || String(error);
     console.error("Error fetching service:", error);
     return NextResponse.json(
-      { error: "Error al obtener servicio" },
+      { error: "Error al obtener servicio", details },
       { status: 500 }
     );
   }
@@ -53,7 +53,7 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
-    const supabase = await getAuthenticatedSupabase();
+    const supabase = await getProtectedSupabase();
 
     const { nombre, descripcion, precio, duracion, categoriaId, activo } =
       await request.json();
@@ -76,9 +76,13 @@ export async function PUT(
 
     return NextResponse.json({ service });
   } catch (error) {
+    const details = (error as any)?.message || String(error);
+    if (details === "UNAUTHORIZED") {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
     console.error("Error updating service:", error);
     return NextResponse.json(
-      { error: "Error al actualizar servicio" },
+      { error: "Error al actualizar servicio", details },
       { status: 500 }
     );
   }
@@ -90,7 +94,7 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const supabase = await getAuthenticatedSupabase();
+    const supabase = await getProtectedSupabase();
 
     const { error } = await supabase
       .from('services')
@@ -101,9 +105,13 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    const details = (error as any)?.message || String(error);
+    if (details === "UNAUTHORIZED") {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
     console.error("Error deleting service:", error);
     return NextResponse.json(
-      { error: "Error al eliminar servicio" },
+      { error: "Error al eliminar servicio", details },
       { status: 500 }
     );
   }

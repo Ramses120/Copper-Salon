@@ -26,8 +26,8 @@ export default function Footer() {
     },
     { 
       icon: Mail, 
-      text: "info@copperbeauty.com",
-      href: "mailto:info@copperbeauty.com"
+      text: "copperbeauty21@gmail.com",
+      href: "mailto:copperbeauty21@gmail.com"
     },
   ];
 

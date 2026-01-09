@@ -1,5 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { createClient } from "@supabase/supabase-js";
+import { cookies } from "next/headers";
+
+async function getAuthenticatedSupabase() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("sb-access-token")?.value;
+
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    token
+      ? { global: { headers: { Authorization: `Bearer ${token}` } } }
+      : {}
+  );
+}
 
 export async function GET(req: NextRequest) {
   const searchParams = req.nextUrl.searchParams;
@@ -10,15 +24,19 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const customers = await db.customer.findMany({
-      where: { phone: phone }
-    });
+    const supabase = await getAuthenticatedSupabase();
+    const { data, error } = await supabase
+      .from("customers")
+      .select("*")
+      .eq("phone", phone)
+      .limit(1)
+      .single();
 
-    if (customers.length > 0) {
-      return NextResponse.json(customers[0]);
-    } else {
-      return NextResponse.json(null); // Not found
+    if (error && error.code !== "PGRST116") {
+      throw error;
     }
+
+    return NextResponse.json(data || null);
   } catch (error) {
     console.error("Error fetching customer by phone:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });

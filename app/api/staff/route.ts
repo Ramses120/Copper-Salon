@@ -1,19 +1,21 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { cookies } from "next/headers";
+import { createUserSupabaseClient, getValidatedSession } from "@/lib/serverAuth";
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseAnon = createClient(supabaseUrl, supabaseAnonKey);
 
 // Helper para crear cliente autenticado
-async function getAuthenticatedSupabase() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("sb-access-token")?.value;
-
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    token
-      ? { global: { headers: { Authorization: `Bearer ${token}` } } }
-      : {}
-  );
+async function getSupabaseWithSession(required = false) {
+  const session = await getValidatedSession();
+  if (session) {
+    return createUserSupabaseClient(session.token);
+  }
+  if (required) {
+    throw new Error("UNAUTHORIZED");
+  }
+  return supabaseAnon;
 }
 
 // Función para generar código único de autenticación
@@ -25,7 +27,7 @@ function generateAuthCode(): string {
 
 export async function GET() {
   try {
-    const supabase = await getAuthenticatedSupabase();
+    const supabase = await getSupabaseWithSession();
     
     // Si es admin (tiene token), mostrar todos. Si no, solo activos.
     // Pero por ahora mantenemos la lógica original de mostrar solo activos para la lista pública
@@ -83,6 +85,8 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const supabase = await getSupabaseWithSession(true);
+
     const { nombre, especialidades, telefono, activo } = await request.json();
 
     if (!nombre || !especialidades || especialidades.length === 0 || !telefono) {
@@ -105,8 +109,6 @@ export async function POST(request: Request) {
       sabado: { activo: true, inicio: "09:00", fin: "17:30" },
       domingo: { activo: false, inicio: "09:00", fin: "17:30" },
     };
-
-    const supabase = await getAuthenticatedSupabase();
 
     const { data: staff, error } = await supabase
       .from("staff")
@@ -139,6 +141,13 @@ export async function POST(request: Request) {
   } catch (error: any) {
     console.error("Error creating staff:", error);
     
+    if ((error as any)?.message === "UNAUTHORIZED") {
+      return NextResponse.json(
+        { error: "No autorizado" },
+        { status: 401 }
+      );
+    }
+
     if (error?.code === 'PGRST303') {
       return NextResponse.json(
         { error: "Tu sesión ha expirado. Por favor inicia sesión nuevamente.", details: error },

@@ -32,11 +32,13 @@ export default function AdminClientesPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [togglingCustomerId, setTogglingCustomerId] = useState<string | null>(null);
   
   const [formData, setFormData] = useState({
     name: "",
     phone: "",
     notes: "",
+    active: true,
   });
 
   // Cargar clientes
@@ -76,6 +78,7 @@ export default function AdminClientesPage() {
       name: customer.name,
       phone: customer.phone,
       notes: customer.notes || "",
+      active: customer.active,
     });
     setEditingCustomer(customer);
     setShowForm(true);
@@ -124,6 +127,7 @@ export default function AdminClientesPage() {
           name: "",
           phone: "",
           notes: "",
+          active: true,
         });
         fetchCustomers();
       } else {
@@ -156,6 +160,41 @@ export default function AdminClientesPage() {
     }
   };
 
+  const handleToggleActive = async (customer: Customer) => {
+    if (!customer) return;
+    setTogglingCustomerId(customer.id);
+    try {
+      const response = await fetch(`/api/customers/${customer.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: customer.name,
+          phone: customer.phone,
+          notes: customer.notes || "",
+          active: !customer.active,
+        }),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setCustomers((prev) =>
+          prev.map((c) => (c.id === customer.id ? { ...c, ...data } : c))
+        );
+        setSelectedCustomer((prev) =>
+          prev && prev.id === customer.id ? { ...prev, ...data } : prev
+        );
+        alert(!customer.active ? "Cliente reactivado" : "Cliente desactivado");
+      } else {
+        const msg = data?.error || "No se pudo actualizar el estado del cliente";
+        alert(msg);
+      }
+    } catch (error) {
+      console.error("Error toggling customer state:", error);
+      alert("Error al actualizar estado del cliente");
+    } finally {
+      setTogglingCustomerId(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -180,6 +219,7 @@ export default function AdminClientesPage() {
               name: "",
               phone: "",
               notes: "",
+              active: true,
             });
             setShowForm(true);
           }}
@@ -240,8 +280,8 @@ export default function AdminClientesPage() {
                             </p>
                           )}
                         </div>
-                        <Badge className="bg-green-100 text-green-700">
-                          Activo
+                        <Badge className={customer.active ? "bg-green-100 text-green-700" : "bg-gray-200 text-gray-700"}>
+                          {customer.active ? "Activo" : "Desactivado"}
                         </Badge>
                       </div>
                     </div>
@@ -293,15 +333,28 @@ export default function AdminClientesPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Notas
                     </label>
-                    <textarea
-                      value={formData.notes}
-                      onChange={(e) =>
-                        setFormData({ ...formData, notes: e.target.value })
-                      }
-                      placeholder="Notas adicionales del cliente..."
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                      rows={3}
+                  <textarea
+                    value={formData.notes}
+                    onChange={(e) =>
+                      setFormData({ ...formData, notes: e.target.value })
+                    }
+                    placeholder="Notas adicionales del cliente..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    rows={3}
+                  />
+                </div>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="active"
+                      type="checkbox"
+                      checked={formData.active}
+                      onChange={(e) => setFormData({ ...formData, active: e.target.checked })}
+                      className="w-4 h-4"
                     />
+                    <label htmlFor="active" className="text-sm text-gray-700">
+                      Cliente activo
+                    </label>
                   </div>
 
                   <div className="flex gap-2 pt-4">
@@ -326,9 +379,25 @@ export default function AdminClientesPage() {
           ) : selectedCustomer ? (
             <Card>
               <CardHeader>
-                <CardTitle>{selectedCustomer.name}</CardTitle>
+                <div className="flex items-center justify-between gap-2">
+                  <CardTitle>{selectedCustomer.name}</CardTitle>
+                  <Badge className={selectedCustomer.active ? "bg-green-100 text-green-700" : "bg-gray-200 text-gray-700"}>
+                    {selectedCustomer.active ? "Activo" : "Desactivado"}
+                  </Badge>
+                </div>
               </CardHeader>
               <CardContent className="space-y-4">
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    className={selectedCustomer.active ? "border-red-300 text-red-700" : "border-green-300 text-green-700"}
+                    onClick={() => handleToggleActive(selectedCustomer)}
+                    disabled={togglingCustomerId === selectedCustomer.id}
+                  >
+                    {selectedCustomer.active ? "Desactivar" : "Reactivar"}
+                  </Button>
+                </div>
+
                 <div>
                   <p className="text-sm text-gray-600">Teléfono</p>
                   <p className="font-semibold">{selectedCustomer.phone}</p>
@@ -347,10 +416,16 @@ export default function AdminClientesPage() {
                       window.location.href = `/admin/reservas?customerId=${selectedCustomer.id}`;
                     }}
                     className="w-full bg-green-600 hover:bg-green-700"
+                    disabled={!selectedCustomer.active}
                   >
                     <Calendar size={18} className="mr-2" />
                     Crear Reserva
                   </Button>
+                  {!selectedCustomer.active && (
+                    <p className="text-xs text-red-600">
+                      Reactiva al cliente para poder crear nuevas reservas.
+                    </p>
+                  )}
                   <Button
                     onClick={() => handleEditCustomer(selectedCustomer)}
                     variant="outline"

@@ -22,6 +22,7 @@ interface Category {
   name: string;
   description?: string;
   order?: number;
+  display_order?: number;
 }
 
 interface Service {
@@ -45,6 +46,7 @@ export default function AdminServiciosPage() {
   const [showServiceForm, setShowServiceForm] = useState(false);
   const [showCategoryForm, setShowCategoryForm] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const [serviceFormData, setServiceFormData] = useState({
@@ -163,24 +165,31 @@ export default function AdminServiciosPage() {
     setSubmitting(true);
 
     try {
-      const res = await fetch("/api/categories", {
-        method: "POST",
+      const isEditing = Boolean(editingCategory);
+      const url = isEditing ? `/api/categories/${editingCategory?.id}` : "/api/categories";
+      const method = isEditing ? "PUT" : "POST";
+
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(categoryFormData),
       });
 
       if (res.ok) {
-        const newCategory = await res.json();
-        setCategories([...categories, newCategory]);
-        setShowCategoryForm(false);
-        setCategoryFormData({ name: "", description: "" });
+        const savedCategory = await res.json();
+        if (isEditing) {
+          setCategories(categories.map((c) => (c.id === savedCategory.id ? savedCategory : c)));
+        } else {
+          setCategories([...categories, savedCategory]);
+        }
+        resetCategoryForm();
       } else {
         const error = await res.json();
-        alert(error.error || "Error al crear categoría");
+        alert(error.error || "Error al guardar categoría");
       }
     } catch (error) {
-      console.error("Error creating category:", error);
-      alert("Error al crear categoría");
+      console.error("Error saving category:", error);
+      alert("Error al guardar categoría");
     } finally {
       setSubmitting(false);
     }
@@ -196,6 +205,29 @@ export default function AdminServiciosPage() {
     });
     setEditingService(null);
     setShowServiceForm(false);
+  };
+
+  const resetCategoryForm = () => {
+    setCategoryFormData({ name: "", description: "" });
+    setEditingCategory(null);
+    setShowCategoryForm(false);
+  };
+
+  const handleDeleteCategory = async (id: string) => {
+    if (!confirm("¿Eliminar esta categoría? Los servicios ligados a ella dejarán de mostrarse.")) return;
+    try {
+      const res = await fetch(`/api/categories/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || "Error al eliminar la categoría");
+        return;
+      }
+      setCategories(categories.filter((c) => c.id !== id));
+      setServices(services.filter((s) => s.category_id !== id));
+    } catch (error) {
+      console.error("Error deleting category:", error);
+      alert("No se pudo eliminar la categoría");
+    }
   };
 
   const openNewServiceModal = (categoryId?: string) => {
@@ -235,7 +267,14 @@ export default function AdminServiciosPage() {
           <p className="text-gray-600">Gestiona el menú de servicios del salón</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setShowCategoryForm(true)}>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setEditingCategory(null);
+              setCategoryFormData({ name: "", description: "" });
+              setShowCategoryForm(true);
+            }}
+          >
             <FolderPlus className="mr-2" size={18} />
             Nueva Categoría
           </Button>
@@ -270,15 +309,42 @@ export default function AdminServiciosPage() {
           <div key={category.id} className="space-y-4">
             <div className="flex items-center justify-between border-b pb-2">
               <h2 className="text-2xl font-semibold text-gray-800">{category.name}</h2>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="text-pink-600 hover:text-pink-700 hover:bg-pink-50"
-                onClick={() => openNewServiceModal(category.id)}
-              >
-                <Plus size={16} className="mr-1" />
-                Agregar a {category.name}
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-gray-600 hover:text-blue-600"
+                  onClick={() => {
+                    setEditingCategory(category);
+                    setCategoryFormData({
+                      name: category.name,
+                      description: category.description || "",
+                    });
+                    setShowCategoryForm(true);
+                  }}
+                >
+                  <Edit size={16} className="mr-1" />
+                  Editar
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-gray-600 hover:text-red-600"
+                  onClick={() => handleDeleteCategory(category.id)}
+                >
+                  <Trash2 size={16} className="mr-1" />
+                  Eliminar
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="text-pink-600 hover:text-pink-700 hover:bg-pink-50"
+                  onClick={() => openNewServiceModal(category.id)}
+                >
+                  <Plus size={16} className="mr-1" />
+                  Agregar a {category.name}
+                </Button>
+              </div>
             </div>
 
             {category.services.length === 0 ? (
@@ -444,7 +510,7 @@ export default function AdminServiciosPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <Card className="bg-white w-full max-w-md">
             <CardHeader>
-              <CardTitle>Nueva Categoría</CardTitle>
+              <CardTitle>{editingCategory ? "Editar Categoría" : "Nueva Categoría"}</CardTitle>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleCategorySubmit} className="space-y-4">
@@ -474,12 +540,12 @@ export default function AdminServiciosPage() {
                 </div>
 
                 <div className="flex gap-3 justify-end pt-4">
-                  <Button type="button" variant="outline" onClick={() => setShowCategoryForm(false)}>
+                  <Button type="button" variant="outline" onClick={resetCategoryForm}>
                     Cancelar
                   </Button>
                   <Button type="submit" className="bg-pink-600 hover:bg-pink-700" disabled={submitting}>
                     {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Crear Categoría
+                    {editingCategory ? "Guardar" : "Crear Categoría"}
                   </Button>
                 </div>
               </form>

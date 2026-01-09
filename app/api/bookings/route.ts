@@ -1,31 +1,31 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { cookies } from "next/headers";
+import { createUserSupabaseClient, getValidatedSession } from "@/lib/serverAuth";
 
-// Helper para crear cliente autenticado
-async function getAuthenticatedSupabase() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("sb-access-token")?.value;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    token
-      ? { global: { headers: { Authorization: `Bearer ${token}` } } }
-      : {}
-  );
+// Cliente público (RLS protege).
+const supabaseAnon = createClient(supabaseUrl, supabaseAnonKey);
+
+// Helper: usa sesión de usuario; si no hay, retorna público (para permitir reservas públicas).
+async function getSupabaseForRequest(requireAuth = false) {
+  const session = await getValidatedSession();
+  if (session) {
+    return createUserSupabaseClient(session.token);
+  }
+  if (requireAuth) {
+    throw new Error("UNAUTHORIZED");
+  }
+  return supabaseAnon;
 }
-
-const supabaseAnon = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     
     // Normalizar parámetros
+    const customerIdFromBody = body.customerId || body.customer_id;
     const staffId = body.staffId;
     const date = body.date || body.fecha;
     const startTime = body.startTime || body.hora;
@@ -44,9 +44,9 @@ export async function POST(request: Request) {
       );
     }
 
-    // Usar cliente autenticado si hay sesión (para admin), sino anónimo (para web pública)
+    // Usar cliente autenticado si hay sesión (para admin), o service role/anon para la web pública
     // NOTA: Se requiere haber ejecutado el SQL 'ALLOW_PUBLIC_BOOKINGS.sql' para que funcione sin Service Role
-    const supabase = await getAuthenticatedSupabase();
+    const supabase = await getSupabaseForRequest();
 
     // Calculate endTime if not provided
     let calculatedEndTime = endTime;
@@ -118,8 +118,29 @@ export async function POST(request: Request) {
     }
 
     // 2. Obtener o crear cliente (Upsert para manejar duplicados automáticamente)
-    let customer;
-    if (customerPhone) {
+    let customerId = customerIdFromBody;
+    if (customerIdFromBody) {
+      const { data: existingCustomer, error: customerError } = await supabase
+        .from("customers")
+        .select("*")
+        .eq("id", customerIdFromBody)
+        .single();
+
+      if (customerError) throw customerError;
+      if (!existingCustomer) {
+        return NextResponse.json(
+          { error: "Cliente no encontrado. Reactiva o crea el cliente primero." },
+          { status: 404 }
+        );
+      }
+      if (existingCustomer.active === false) {
+        return NextResponse.json(
+          { error: "El cliente está desactivado. Reactívalo para crear reservas." },
+          { status: 403 }
+        );
+      }
+      customerId = existingCustomer.id;
+    } else if (customerPhone) {
       // Prepare customer data - EXCLUDING email as per user request to avoid schema errors
       const customerData: any = {
         name: customerName || "Cliente",
@@ -143,18 +164,24 @@ export async function POST(request: Request) {
         console.error("Error upserting customer:", upsertError);
         throw new Error(`Error al guardar cliente: ${upsertError.message}`);
       }
-      customer = upsertedCustomer;
+      if (upsertedCustomer?.active === false) {
+        return NextResponse.json(
+          { error: "El cliente está desactivado. Reactívalo para crear reservas." },
+          { status: 403 }
+        );
+      }
+      customerId = upsertedCustomer?.id;
     }
 
-    if (!customer) {
-      throw new Error("No se pudo identificar al cliente (falta teléfono)");
+    if (!customerId) {
+      throw new Error("No se pudo identificar al cliente (falta teléfono o ID)");
     }
 
     // 3. Crear reserva
     const { data: booking, error: bookingError } = await supabase
       .from("bookings")
       .insert({
-        customer_id: customer?.id || null,
+        customer_id: customerId,
         booking_date: date,
         start_time: startTime,
         end_time: calculatedEndTime,
@@ -223,7 +250,7 @@ export async function GET(request: Request) {
     const date = searchParams.get("date");
     const status = searchParams.get("status");
 
-    const supabase = await getAuthenticatedSupabase();
+    const supabase = await getSupabaseForRequest(true);
 
     let query = supabase
       .from("bookings")
@@ -256,6 +283,7 @@ export async function GET(request: Request) {
 
     const mappedBookings = bookings?.map((b: any) => ({
       id: b.id,
+      customerId: b.customer_id || b.customer?.id,
       clientName: b.customer?.name || "Cliente Desconocido",
       clientPhone: b.customer?.phone || "",
       clientEmail: b.customer?.email || "",
@@ -267,17 +295,22 @@ export async function GET(request: Request) {
       staffId: b.staff_id,
       staff: b.staff ? { name: b.staff.name, id: b.staff.id } : { name: "Sin asignar" },
       services: b.services?.map((s: any) => ({
-        service: s.service ? { name: s.service.name, price: s.service.price } : { name: "Servicio desconocido" }
+        service: s.service
+          ? { id: s.service.id, name: s.service.name, price: s.service.price }
+          : { id: undefined, name: "Servicio desconocido", price: 0 }
       })) || []
     })) || [];
 
     return NextResponse.json({ bookings: mappedBookings });
   } catch (error) {
+    const details = (error as any)?.message || String(error);
+    if (details === "UNAUTHORIZED") {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
     console.error("Error fetching bookings:", error);
     return NextResponse.json(
-      { error: "Error al obtener reservas", details: String(error) },
+      { error: "Error al obtener reservas", details },
       { status: 500 }
     );
   }
 }
-

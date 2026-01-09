@@ -15,7 +15,7 @@ interface BookingEmailData {
 export async function sendBookingConfirmation(data: BookingEmailData) {
   try {
     const { data: result, error } = await resend.emails.send({
-      from: 'Copper Beauty Salon <noreply@copperbeauty.com>',
+      from: 'Copper Beauty Salon <copperbeauty21@gmail.com>',
       to: data.clienteEmail,
       subject: '✨ Solicitud de Reserva Recibida - Copper Beauty Salon',
       html: `
@@ -176,7 +176,7 @@ export async function sendBookingConfirmation(data: BookingEmailData) {
             <div class="footer">
               <p><strong>Copper Beauty Salon & Spa</strong></p>
               <p>Miami, FL | (786) 555-0100</p>
-              <p>info@copperbeauty.com</p>
+              <p>copperbeauty21@gmail.com</p>
               <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
               <p style="font-size: 12px; color: #999;">
                 Si necesitas cancelar o modificar tu cita, por favor contáctanos con al menos 24 horas de anticipación.
@@ -203,7 +203,7 @@ export async function sendBookingConfirmation(data: BookingEmailData) {
 export async function sendBookingReminder(data: BookingEmailData) {
   try {
     const { data: result, error } = await resend.emails.send({
-      from: 'Copper Beauty Salon <noreply@copperbeauty.com>',
+      from: 'Copper Beauty Salon <noreply@yourdomain.com>',
       to: data.clienteEmail,
       subject: '⏰ Recordatorio de Cita - Mañana en Copper Beauty',
       html: `

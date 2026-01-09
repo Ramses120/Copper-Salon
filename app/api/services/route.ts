@@ -1,42 +1,73 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { cookies } from "next/headers";
+import { createUserSupabaseClient, getValidatedSession } from "@/lib/serverAuth";
 
-// Helper para crear cliente autenticado
-async function getAuthenticatedSupabase() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("sb-access-token")?.value;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    token
-      ? { global: { headers: { Authorization: `Bearer ${token}` } } }
-      : {}
-  );
+// Cliente sin sesión usa únicamente la anon key (respeta RLS).
+function getPublicSupabase() {
+  return createClient(supabaseUrl, supabaseAnonKey);
 }
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const categoryId = searchParams.get("categoryId");
+    const categoryFilter = searchParams.get("category");
 
-    const supabase = await getAuthenticatedSupabase();
-    
-    let query = supabase
-      .from('services')
-      .select('*, category:categories(*)')
-      .order('name', { ascending: true });
+    const supabase = getPublicSupabase();
 
-    if (categoryId && categoryId !== "all") {
-      query = query.eq('category_id', categoryId);
+    const [{ data: categories, error: catError }, { data: services, error: svcError }] =
+      await Promise.all([
+        supabase
+          .from("categories")
+          .select("id,name,description,display_order,active")
+          .eq("active", true)
+          .order("display_order", { ascending: true }),
+        supabase
+          .from("services")
+          .select("id,category_id,name,description,duration_minutes,price,active,featured, categories(name)")
+          .eq("active", true)
+          .order("category_id", { ascending: true })
+          .order("name", { ascending: true }),
+      ]);
+
+    if (catError) throw catError;
+    if (svcError) throw svcError;
+
+    const normalize = (str?: string | null) =>
+      (str || "").toString().trim().toLowerCase();
+
+    const catById = new Map<number | string, any>();
+    (categories || []).forEach((c) => {
+      if (c.id) catById.set(String(c.id), c);
+    });
+
+    let filteredServices = services || [];
+    if (categoryFilter && categoryFilter !== "all") {
+      filteredServices = filteredServices.filter(
+        (s) =>
+          String(s.category_id) === categoryFilter ||
+          normalize(s.categories?.name) === normalize(categoryFilter)
+      );
     }
 
-    const { data: services, error } = await query;
+    const normalized = filteredServices.map((s) => {
+      const cat = catById.get(String(s.category_id));
+      return {
+        id: s.id,
+        name: s.name,
+        description: s.description || "",
+        price: Number(s.price || 0),
+        duration_minutes: s.duration_minutes || 0,
+        active: s.active,
+        featured: s.featured,
+        category_id: s.category_id || null,
+        category: cat?.name || s.categories?.name || "",
+      };
+    });
 
-    if (error) throw error;
-
-    return NextResponse.json({ services });
+    return NextResponse.json({ services: normalized });
   } catch (error) {
     console.error("Error fetching services:", error);
     return NextResponse.json(
@@ -48,7 +79,15 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const supabase = await getAuthenticatedSupabase();
+    const session = await getValidatedSession();
+    if (!session) {
+      return NextResponse.json(
+        { error: "No autorizado" },
+        { status: 401 }
+      );
+    }
+
+    const supabase = createUserSupabaseClient(session.token);
     
     const { nombre, descripcion, precio, duracion, categoriaId } =
       await request.json();

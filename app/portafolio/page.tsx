@@ -8,6 +8,7 @@ import {
   Dialog,
   DialogContent,
   DialogClose,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
 import NextImage from "next/image";
@@ -63,20 +64,28 @@ export default function PortafolioPage() {
       const { data, error } = await supabase
         .from("portfolio_images")
         .select("*")
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(32); // Traer hasta 32 imágenes (>15) para la galería completa
 
       if (error) throw error;
-      
+
       // Mapear los datos de la tabla portfolio_images a la interfaz GalleryImage
-      const mappedImages = (data || []).map((img: any) => ({
-        id: img.id,
-        image_url: img.url,
-        title: img.caption || 'Sin título',
-        category: img.category,
-        visible: true,
-        is_featured: false,
-        created_at: img.created_at
-      }));
+      const mappedImages = (data || []).map((img: any) => {
+        let imageUrl = img.url || "";
+        if (typeof imageUrl === "string" && imageUrl.startsWith("/storage")) {
+          imageUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}${imageUrl}`;
+        }
+
+        return {
+          id: img.id,
+          image_url: imageUrl,
+          title: img.caption || "Sin título",
+          category: img.category,
+          visible: true,
+          is_featured: false,
+          created_at: img.created_at,
+        };
+      });
 
       setPortfolioImages(mappedImages);
     } catch (error) {
@@ -86,8 +95,8 @@ export default function PortafolioPage() {
     }
   };
 
-  const filteredImages = selectedCategory === "all" 
-    ? portfolioImages 
+  const filteredImages = selectedCategory === "all"
+    ? portfolioImages
     : portfolioImages.filter(img => img.category === selectedCategory);
 
   const openLightbox = (index: number) => {
@@ -100,22 +109,22 @@ export default function PortafolioPage() {
   };
 
   const prevImage = () => {
-    setCurrentImageIndex((prev) => 
+    setCurrentImageIndex((prev) =>
       prev === 0 ? filteredImages.length - 1 : prev - 1
     );
   };
 
   return (
     <main className="min-h-screen bg-copper-gradient pt-24 lg:pt-32">
-      
+
       {/* Hero Section */}
       <section className="pt-32 pb-12">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto text-center">
-            <h1 className="font-times text-5xl md:text-6xl font-bold text-gray-900 mb-6 animate-fade-in-up">
+            <h1 className="font-times text-3xl sm:text-4xl md:text-6xl font-bold text-gray-900 mb-6 animate-fade-in-up">
               Nuestro Portafolio
             </h1>
-            <p className="text-lg text-gray-600 mb-8 animate-fade-in">
+            <p className="text-sm sm:text-base md:text-lg text-gray-600 mb-8 animate-fade-in">
               Descubre la magia de nuestro trabajo. Cada imagen cuenta la historia de una transformación única.
             </p>
           </div>
@@ -133,11 +142,10 @@ export default function PortafolioPage() {
                     key={category.id}
                     variant={selectedCategory === category.id ? "default" : "outline"}
                     onClick={() => setSelectedCategory(category.id)}
-                    className={`rounded-full transition-all ${
-                      selectedCategory === category.id 
-                        ? "bg-black text-white shadow-lg" 
+                    className={`rounded-full transition-all ${selectedCategory === category.id
+                        ? "bg-black text-white shadow-lg"
                         : "border-black text-black hover:bg-black/10"
-                    }`}
+                      }`}
                   >
                     {category.name}
                   </Button>
@@ -165,7 +173,7 @@ export default function PortafolioPage() {
                   {filteredImages.map((image, index) => (
                     <div
                       key={image.id}
-                      className="group relative aspect-square overflow-hidden rounded-xl shadow-md hover:shadow-2xl transition-all duration-300 cursor-pointer animate-scale-in"
+                      className="group relative h-36 sm:aspect-square overflow-hidden rounded-xl shadow-md hover:shadow-2xl transition-all duration-300 cursor-pointer animate-scale-in"
                       style={{ animationDelay: `${index * 0.05}s` }}
                       onClick={() => openLightbox(index)}
                     >
@@ -217,6 +225,9 @@ export default function PortafolioPage() {
       {/* Lightbox */}
       <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
         <DialogContent className="max-w-6xl w-full p-0 bg-black/95 border-none">
+          <DialogTitle className="sr-only">
+            {filteredImages[currentImageIndex]?.title || "Imagen de portafolio"}
+          </DialogTitle>
           <div className="relative">
             {/* Close Button */}
             <DialogClose className="absolute top-4 right-4 z-50 bg-white/10 hover:bg-white/20 rounded-full p-2 transition-colors">

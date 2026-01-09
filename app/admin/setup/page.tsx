@@ -106,7 +106,7 @@ export default function SetupAdminPage() {
             <p className="text-xs text-gray-600 mb-3">Credenciales por defecto:</p>
             <div className="bg-gray-50 p-3 rounded-lg font-mono text-xs">
               <p className="text-gray-900">
-                <strong>Email:</strong> admin@copperbeauty.com
+                <strong>Email:</strong> admin@yourdomain.com
               </p>
               <p className="text-gray-900">
                 <strong>Contraseña:</strong> admin123@

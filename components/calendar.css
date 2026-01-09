@@ -96,9 +96,8 @@
 }
 
 .react-calendar-custom .react-calendar__month-view__days {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 2px;
+  display: flex;
+  flex-wrap: wrap;
 }
 
 .react-calendar-custom .react-calendar__month-view__days__day {
@@ -108,6 +107,8 @@
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
+  flex-basis: calc(100% / 7);
+  max-width: calc(100% / 7);
 }
 
 /* Animación para números con reservas */

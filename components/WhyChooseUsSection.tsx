@@ -1,44 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import salon from "@/assets/salon.jpg";
 
 export default function WhyChooseUsSection() {
-  const [inView, setInView] = useState(false);
-  const sectionRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => setInView(entry.isIntersecting));
-      },
-      { threshold: 0.25 }
-    );
-
-    const current = sectionRef.current;
-    if (current) observer.observe(current);
-
-    return () => {
-      if (current) observer.unobserve(current);
-    };
-  }, []);
-
   return (
-    <section 
-      className="py-16 md:py-24 relative overflow-hidden bg-white"
-    >
+    <section className="py-16 md:py-24 relative overflow-hidden bg-white">
       <div className="container mx-auto px-4 relative z-10">
-        <div
-          ref={sectionRef}
-          className="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-16 items-center"
-        >
-          {/* Left side - Text content */}
-          <div
-            className={`transition-all duration-700 ease-out ${
-              inView ? "translate-x-0 opacity-100" : "-translate-x-12 opacity-0"
-            }`}
-          >
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-16 items-center">
+          {/* Left side - Text content (no animation) */}
+          <div className="opacity-100 translate-x-0">
             <h2 className="font-playfair text-2xl sm:text-3xl md:text-4xl font-bold text-[#1f1316] leading-tight mb-6">
               Por Qué Nuestros Clientes
               <br />
@@ -54,12 +25,8 @@ export default function WhyChooseUsSection() {
             </div>
           </div>
 
-          {/* Right side - Image with stats */}
-          <div
-            className={`transition-all duration-700 ease-out ${
-              inView ? "translate-x-0 opacity-100" : "translate-x-12 opacity-0"
-            }`}
-          >
+          {/* Right side - Image with stats (no animation) */}
+          <div className="opacity-100 translate-x-0">
             <div className="flex flex-col items-center">
               {/* Square image */}
               <div className="relative w-96 h-96 md:w-[28rem] md:h-[28rem] rounded-lg overflow-hidden shadow-2xl mb-8">
@@ -75,20 +42,12 @@ export default function WhyChooseUsSection() {
               {/* Stats below image */}
               <div className="flex gap-12 md:gap-16 justify-center w-full">
                 <div className="text-center">
-                  <h3 className="font-playfair text-2xl sm:text-3xl md:text-4xl font-bold text-[#d63d7a] mb-1">
-                    3k+
-                  </h3>
-                  <p className="text-xs sm:text-sm md:text-base text-[#2d1b1e] font-montserrat">
-                    Clientes satisfechos
-                  </p>
+                  <h3 className="font-playfair text-2xl sm:text-3xl md:text-4xl font-bold text-[#d63d7a] mb-1">3k+</h3>
+                  <p className="text-xs sm:text-sm md:text-base text-[#2d1b1e] font-montserrat">Clientes satisfechos</p>
                 </div>
                 <div className="text-center">
-                  <h3 className="font-playfair text-2xl sm:text-3xl md:text-4xl font-bold text-[#d63d7a] mb-1">
-                    7+
-                  </h3>
-                  <p className="text-xs sm:text-sm md:text-base text-[#2d1b1e] font-montserrat">
-                    Años de experiencia
-                  </p>
+                  <h3 className="font-playfair text-2xl sm:text-3xl md:text-4xl font-bold text-[#d63d7a] mb-1">7+</h3>
+                  <p className="text-xs sm:text-sm md:text-base text-[#2d1b1e] font-montserrat">Años de experiencia</p>
                 </div>
               </div>
             </div>

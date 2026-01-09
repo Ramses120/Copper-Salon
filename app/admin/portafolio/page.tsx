@@ -46,17 +46,28 @@ export default function AdminPortafolioPage() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      
+
       // Mapear los datos de la tabla portfolio_images a la interfaz GalleryImage
-      const mappedImages = (data || []).map((img: any) => ({
-        id: img.id,
-        image_url: img.url,
-        title: img.caption || 'Sin título',
-        category: img.category,
-        visible: true, // La tabla portfolio_images no tiene campo visible, asumimos true
-        is_featured: false, // La tabla portfolio_images no tiene campo is_featured, asumimos false
-        created_at: img.created_at
-      }));
+      const mappedImages = (data || []).map((img: any) => {
+        // Normalizar URL: si la url es relativa (empieza por /storage) concatenar el dominio público
+        let imageUrl = img.url || '';
+        if (typeof imageUrl === 'string' && imageUrl.startsWith('/storage')) {
+          imageUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}${imageUrl}`;
+        }
+
+        return {
+          id: img.id,
+          image_url: imageUrl,
+          title: img.caption || 'Sin título',
+          category: img.category,
+          visible: true,
+          is_featured: false,
+          created_at: img.created_at
+        } as GalleryImage;
+      }).filter((img: GalleryImage) =>
+        typeof img.image_url === 'string' &&
+        (img.image_url.startsWith('http://') || img.image_url.startsWith('https://') || img.image_url.startsWith('/'))
+      );
 
       setImages(mappedImages);
     } catch (error) {
@@ -74,7 +85,7 @@ export default function AdminPortafolioPage() {
         alert('Por favor selecciona una imagen válida');
         return;
       }
-      
+
       // Validar tamaño (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
         alert('La imagen no debe superar 5MB');
@@ -82,7 +93,7 @@ export default function AdminPortafolioPage() {
       }
 
       setImageFile(file);
-      
+
       // Crear preview
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -94,34 +105,53 @@ export default function AdminPortafolioPage() {
 
   const uploadImage = async (file: File): Promise<string | null> => {
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
-      const filePath = `gallery/${fileName}`;
+      const form = new FormData();
+      form.append("file", file);
+      form.append("category", formData.category);
 
-      const { error: uploadError } = await supabase.storage
-        .from('images')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false
-        });
+      const res = await fetch("/api/admin/portfolio/upload", {
+        method: "POST",
+        body: form,
+      });
 
-      if (uploadError) throw uploadError;
+      if (!res.ok) {
+        let err: any = {};
+        let text = "";
+        try {
+          err = await res.json();
+        } catch (_) {
+          try {
+            text = await res.text();
+          } catch (_) {
+            text = "";
+          }
+        }
+        console.error("Upload error payload:", err || text);
+        const msgParts = [
+          err.error,
+          err.details,
+          err.message,
+          err.bucket ? `Bucket: ${err.bucket}` : "",
+          text,
+          `HTTP ${res.status} ${res.statusText}`,
+          Object.keys(err || {}).length ? JSON.stringify(err) : "",
+        ].filter(Boolean);
+        const msg = msgParts.join(" | ") || "Error al subir la imagen";
+        throw new Error(msg);
+      }
 
-      // Obtener URL pública
-      const { data } = supabase.storage
-        .from('images')
-        .getPublicUrl(filePath);
-
-      return data.publicUrl;
-    } catch (error) {
+      const data = await res.json();
+      return data.publicUrl as string;
+    } catch (error: any) {
       console.error('Error uploading image:', error);
+      alert(error?.message || "No se pudo subir la imagen. Verifica configuración de Supabase.");
       return null;
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!imageFile) {
       alert('Debes seleccionar una imagen para subir');
       return;
@@ -136,17 +166,23 @@ export default function AdminPortafolioPage() {
         return;
       }
 
-      const { error } = await supabase.from('portfolio_images').insert([{
-        caption: 'Instagram',
+      // No insertamos manualmente en la tabla porque tenemos un trigger en el servidor
+      // que sincroniza storage -> portfolio_images. Añadimos optimistamente a la UI.
+      const newImage: GalleryImage = {
+        id: Date.now(),
+        image_url: uploadedUrl,
+        title: formData.title || 'Sin título',
         category: formData.category,
-        url: uploadedUrl,
-      }]);
+        visible: formData.visible,
+        is_featured: formData.is_featured,
+        created_at: new Date().toISOString()
+      };
 
-      if (error) throw error;
+      setImages((prev) => [newImage, ...prev]);
 
       // Reset form
-      setFormData({ 
-        title: 'Instagram', 
+      setFormData({
+        title: 'Instagram',
         category: 'cortes',
         visible: true,
         is_featured: false,
@@ -167,13 +203,16 @@ export default function AdminPortafolioPage() {
     if (!confirm('¿Estás seguro de eliminar esta imagen?')) return;
 
     try {
-      const { error } = await supabase.from('portfolio_images').delete().eq('id', id);
-
-      if (error) throw error;
-      fetchImages();
+      const res = await fetch(`/api/admin/portfolio/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        const msg = err.error || err.details || "Error al eliminar imagen";
+        throw new Error(msg);
+      }
+      setImages((prev) => prev.filter((img) => img.id !== id));
     } catch (error) {
       console.error('Error deleting image:', error);
-      alert('Error al eliminar imagen');
+      alert(error instanceof Error ? error.message : 'Error al eliminar imagen');
     }
   };
 
@@ -253,7 +292,7 @@ export default function AdminPortafolioPage() {
                   )}
                 </div>
               </div>
-              
+
               {/* Preview de la imagen */}
               {previewUrl && (
                 <div className="mt-4 relative w-full h-64 rounded-lg overflow-hidden">
@@ -291,7 +330,7 @@ export default function AdminPortafolioPage() {
                   Visible en galería pública
                 </label>
               </div>
-              
+
               <div className="flex items-center">
                 <input
                   type="checkbox"
@@ -328,7 +367,12 @@ export default function AdminPortafolioPage() {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {images.map((image) => (
+        {images
+          .filter((img) =>
+            typeof img.image_url === 'string' &&
+            (img.image_url.startsWith('http://') || img.image_url.startsWith('https://') || img.image_url.startsWith('/'))
+          )
+          .map((image) => (
           <div key={image.id} className="bg-white rounded-lg shadow overflow-hidden">
             <div className="relative h-64">
               <Image

@@ -71,7 +71,7 @@ export default function AdminLoginPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@copperbeauty.com"
+                placeholder="admin@yourdomain.com"
                 disabled={loading}
               />
             </div>

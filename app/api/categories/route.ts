@@ -1,27 +1,21 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { cookies } from "next/headers";
+import { createUserSupabaseClient, getValidatedSession } from "@/lib/serverAuth";
 
-// Helper para crear cliente autenticado
-async function getAuthenticatedSupabase() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("sb-access-token")?.value;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    token
-      ? { global: { headers: { Authorization: `Bearer ${token}` } } }
-      : {}
-  );
+function getPublicSupabase() {
+  return createClient(supabaseUrl, supabaseAnonKey);
 }
 
 export async function GET() {
   try {
-    const supabase = await getAuthenticatedSupabase();
+    const supabase = getPublicSupabase();
     const { data: categories, error } = await supabase
       .from('categories')
-      .select('*')
+      .select('id,name,description,display_order,active')
+      .eq('active', true)
       .order('display_order', { ascending: true });
 
     if (error) throw error;
@@ -38,7 +32,15 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const supabase = await getAuthenticatedSupabase();
+    const session = await getValidatedSession();
+    if (!session) {
+      return NextResponse.json(
+        { error: "No autorizado" },
+        { status: 401 }
+      );
+    }
+
+    const supabase = createUserSupabaseClient(session.token);
     const { name, description } = await request.json();
 
     if (!name) {
