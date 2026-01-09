@@ -28,17 +28,25 @@ export async function GET() {
     if (error) throw error;
 
     // Mapear datos al formato esperado
-    const mappedData = (data || []).map((promo: any) => ({
-      id: promo.id,
-      name: promo.name,
-      description: promo.description,
-      discount: promo.discount || promo.special_price || 0,
-      type: promo.type || 'percentage',
-      active: promo.is_active,
-      start_date: promo.valid_from || promo.start_date,
-      end_date: promo.valid_until || promo.end_date,
-      image_url: promo.image_url,
-    }));
+    const mappedData = (data || []).map((promo: any) => {
+      const promoType = promo.type || 'percentage';
+      const discountValue =
+        promoType === 'fixed'
+          ? promo.special_price
+          : promo.discount;
+
+      return {
+        id: promo.id,
+        name: promo.name,
+        description: promo.description,
+        discount: discountValue || 0,
+        type: promoType,
+        active: promo.is_active,
+        start_date: promo.valid_from || promo.start_date,
+        end_date: promo.valid_until || promo.end_date,
+        image_url: promo.image_url,
+      };
+    });
 
     return NextResponse.json(mappedData);
   } catch (error) {
@@ -53,14 +61,18 @@ export async function POST(request: Request) {
     const authClient = await getAuthenticatedSupabase();
     const body = await request.json();
 
+    const promoType = body.type || 'percentage';
+    const rawDiscount = parseFloat(body.discount ?? body.special_price ?? 0);
+    const discountValue = Number.isFinite(rawDiscount) ? rawDiscount : 0;
+
     const { data, error } = await authClient
       .from('promotions')
       .insert([{
         name: body.name,
         description: body.description,
-        special_price: parseFloat(body.discount || body.special_price || 0),
-        discount: parseFloat(body.discount || body.special_price || 0),
-        type: body.type || 'percentage',
+        special_price: promoType === 'fixed' ? discountValue : null,
+        discount: promoType === 'percentage' ? discountValue : null,
+        type: promoType,
         valid_from: body.start_date || body.valid_from,
         valid_until: body.end_date || body.valid_until,
         start_date: body.start_date || body.valid_from,
@@ -75,12 +87,18 @@ export async function POST(request: Request) {
     if (error) throw error;
 
     // Mapear respuesta
+    const responseType = data.type || 'percentage';
+    const responseDiscount =
+      responseType === 'fixed'
+        ? data.special_price
+        : data.discount;
+
     const mappedData = {
       id: data.id,
       name: data.name,
       description: data.description,
-      discount: data.discount || data.special_price,
-      type: data.type || 'percentage',
+      discount: responseDiscount || 0,
+      type: responseType,
       active: data.is_active,
       start_date: data.valid_from || data.start_date,
       end_date: data.valid_until || data.end_date,

@@ -33,12 +33,18 @@ export async function GET(
     if (error) throw error;
 
     // Mapear respuesta
+    const responseType = data.type || 'percentage';
+    const responseDiscount =
+      responseType === 'fixed'
+        ? data.special_price
+        : data.discount;
+
     const mappedData = {
       id: data.id,
       name: data.name,
       description: data.description,
-      discount: data.discount || data.special_price,
-      type: data.type || 'percentage',
+      discount: responseDiscount || 0,
+      type: responseType,
       active: data.is_active,
       start_date: data.valid_from || data.start_date,
       end_date: data.valid_until || data.end_date,
@@ -69,8 +75,17 @@ export async function PATCH(
     if (body.name) updateData.name = body.name;
     if (body.description) updateData.description = body.description;
     if (body.discount !== undefined) {
-      updateData.special_price = body.discount;
-      updateData.discount = body.discount;
+      const promoType = body.type || 'percentage';
+      const rawDiscount = parseFloat(body.discount);
+      const discountValue = Number.isFinite(rawDiscount) ? rawDiscount : 0;
+
+      if (promoType === 'fixed') {
+        updateData.special_price = discountValue;
+        updateData.discount = null;
+      } else {
+        updateData.discount = discountValue;
+        updateData.special_price = null;
+      }
     }
     if (body.type) updateData.type = body.type;
     if (body.start_date) {
@@ -95,12 +110,18 @@ export async function PATCH(
     if (error) throw error;
 
     // Mapear respuesta
+    const responseType = data.type || 'percentage';
+    const responseDiscount =
+      responseType === 'fixed'
+        ? data.special_price
+        : data.discount;
+
     const mappedData = {
       id: data.id,
       name: data.name,
       description: data.description,
-      discount: data.discount || data.special_price,
-      type: data.type || 'percentage',
+      discount: responseDiscount || 0,
+      type: responseType,
       active: data.is_active,
       start_date: data.valid_from || data.start_date,
       end_date: data.valid_until || data.end_date,
