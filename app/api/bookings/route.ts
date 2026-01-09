@@ -90,19 +90,20 @@ export async function POST(request: Request) {
     }
 
     // 1. Validar disponibilidad
-    const availabilityResponse = await fetch(
-      `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/availability/validate`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          staffId,
-          date,
-          startTime,
-          endTime: calculatedEndTime,
-        }),
-      }
+    const availabilityUrl = new URL(
+      "/api/availability/validate",
+      new URL(request.url).origin
     );
+    const availabilityResponse = await fetch(availabilityUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        staffId,
+        date,
+        startTime,
+        endTime: calculatedEndTime,
+      }),
+    });
 
     const availabilityData = await availabilityResponse.json();
 
