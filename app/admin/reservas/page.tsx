@@ -831,7 +831,6 @@ function AdminReservasContent() {
                 )}
               </div>
 
-              )}
 
               {/* Notas */}
               <div>
