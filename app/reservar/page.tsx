@@ -479,7 +479,7 @@ function ReservarForm() {
                 ))}
               </div>
               <div className="text-center mt-4">
-                <h2 className="font-times text-2xl md:text-3xl font-bold text-gray-900">
+                <h2 className="font-times text-xl sm:text-2xl md:text-3xl font-bold text-gray-900">
                   {step === 1 && "Detalles de la Cita"}
                   {step === 2 && "Tus datos y resumen"}
                 </h2>
@@ -492,7 +492,7 @@ function ReservarForm() {
                 {/* Services Summary Section */}
                 <Card className="bg-white/85 backdrop-blur-sm border-copper-red/20">
                   <CardContent className="p-4 sm:p-6">
-                    <h3 className="font-semibold text-base sm:text-lg mb-3 sm:mb-4 flex items-center gap-2">
+                    <h3 className="font-semibold text-sm sm:text-base md:text-lg mb-3 sm:mb-4 flex items-center gap-2">
                       <Sparkles className="text-copper-red" />
                       Servicios Seleccionados
                     </h3>
@@ -534,8 +534,8 @@ function ReservarForm() {
                         )}
 
                         <div className="flex justify-end items-center gap-4 pt-2 border-t mt-2">
-                          <div className="text-sm text-gray-500">Duración aprox: {duration} min</div>
-                          <div className="text-base sm:text-lg font-bold">Total: <span className="text-copper-red">{formatPrice(total)}</span></div>
+                          <div className="text-xs sm:text-sm text-gray-500">Duración aprox: {duration} min</div>
+                          <div className="text-sm sm:text-base font-bold">Total: <span className="text-copper-red">{formatPrice(total)}</span></div>
                         </div>
                       </div>
                     )}
@@ -548,7 +548,7 @@ function ReservarForm() {
                       <Card className="bg-white/85 backdrop-blur-sm">
                         <CardContent className="p-4 sm:p-6 space-y-6">
                           <div>
-                            <h3 className="font-semibold text-lg mb-3 flex items-center gap-2 justify-center lg:justify-start">
+                            <h3 className="font-semibold text-base sm:text-lg mb-3 flex items-center gap-2 justify-center lg:justify-start">
                               <Calendar className="text-copper-red" />
                               Selecciona una fecha
                             </h3>
@@ -579,7 +579,7 @@ function ReservarForm() {
 
                           {selectedDate && (
                             <div className="space-y-3">
-                              <h3 className="font-semibold text-lg flex items-center gap-2 justify-center lg:justify-start">
+                              <h3 className="font-semibold text-base sm:text-lg flex items-center gap-2 justify-center lg:justify-start">
                                 <Clock className="text-copper-red" />
                                 Selecciona una hora
                               </h3>
@@ -620,7 +620,7 @@ function ReservarForm() {
 
                       <Card className="bg-white/85 backdrop-blur-sm">
                         <CardContent className="p-4 sm:p-6">
-                          <h3 className="font-semibold text-lg mb-4 text-center lg:text-left">
+                          <h3 className="font-semibold text-base sm:text-lg mb-3 sm:mb-4 text-center lg:text-left">
                             Elige tu estilista
                           </h3>
                           <div className="grid sm:grid-cols-2 gap-4">
