@@ -557,8 +557,6 @@ function AdminReservasContent() {
       notes: booking.notes || "",
       customerId: booking.customerId || "",
     });
-    setRecurrenceDays("");
-    setSuggestedDate(null);
     setEditingBooking(booking);
     setShowCreateForm(true);
     setSelectedBooking(null);
@@ -613,8 +611,6 @@ function AdminReservasContent() {
           notes: "",
           customerId: "",
         });
-        setRecurrenceDays("");
-        setSuggestedDate(null);
         // Notify other components
         try {
           if (typeof window !== "undefined") {
@@ -680,8 +676,6 @@ function AdminReservasContent() {
               notes: "",
               customerId: "",
             });
-            setRecurrenceDays("");
-            setSuggestedDate(null);
             setShowCreateForm(true);
           }}
           className="bg-pink-600 hover:bg-pink-700"
