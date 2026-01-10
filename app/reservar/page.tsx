@@ -289,13 +289,18 @@ function ReservarForm() {
   const formatDisplayTime = (time: string) => (time ? formatTime(time) : "");
 
   const canProceedToStep = (stepNumber: number) => {
-    if (stepNumber === 2) return (selectedServices.length > 0 || selectedPromotions.length > 0) && selectedStaff !== "" && selectedDate !== "" && selectedTime !== "";
+    if (stepNumber === 2) return selectedServices.length > 0 && selectedStaff !== "" && selectedDate !== "" && selectedTime !== "";
     return true;
   };
 
   const handleSubmit = async () => {
     if (!clientInfo.nombre || !clientInfo.telefono) {
       setError("Por favor completa nombre y teléfono");
+      return;
+    }
+
+    if (selectedServices.length === 0) {
+      setError("Selecciona al menos un servicio para reservar");
       return;
     }
 
@@ -420,7 +425,7 @@ function ReservarForm() {
                       Nuestro equipo se comunicará contigo en las próximas horas para confirmar tu cita. El pago se realiza directamente en el salón.
                     </p>
                   </div>
-                  <div className="bg-gray-50 rounded-xl p-6 mb-8 text-left">
+                  <div className="bg-gray-50 rounded-xl p-4 sm:p-6 mb-8 text-left">
                     <h3 className="font-semibold text-gray-900 mb-4">Resumen de tu reserva:</h3>
                     <div className="space-y-2 text-sm">
                       <p><span className="font-semibold">Servicios:</span> {getSelectedServices().map(s => s.name).join(", ")}</p>
@@ -457,7 +462,7 @@ function ReservarForm() {
                 {[1, 2].map((s) => (
                   <div key={s} className="flex items-center">
                     <div
-                      className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold transition-all ${step >= s
+                      className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-sm sm:text-base font-semibold transition-all ${step >= s
                           ? "bg-copper-red text-white"
                           : "bg-gray-300 text-gray-600"
                         }`}
@@ -466,7 +471,7 @@ function ReservarForm() {
                     </div>
                     {s < 2 && (
                       <div
-                        className={`w-8 md:w-16 h-1 transition-all ${step > s ? "bg-copper-red" : "bg-gray-300"
+                        className={`w-6 sm:w-8 md:w-16 h-1 transition-all ${step > s ? "bg-copper-red" : "bg-gray-300"
                           }`}
                       />
                     )}
@@ -486,8 +491,8 @@ function ReservarForm() {
               <div className="space-y-6 animate-fade-in">
                 {/* Services Summary Section */}
                 <Card className="bg-white/85 backdrop-blur-sm border-copper-red/20">
-                  <CardContent className="p-6">
-                    <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
+                  <CardContent className="p-4 sm:p-6">
+                    <h3 className="font-semibold text-base sm:text-lg mb-3 sm:mb-4 flex items-center gap-2">
                       <Sparkles className="text-copper-red" />
                       Servicios Seleccionados
                     </h3>
@@ -504,7 +509,7 @@ function ReservarForm() {
                         {selectedServices.length > 0 && (
                           <div className="grid gap-3 sm:grid-cols-2">
                             {getSelectedServices().map(s => (
-                              <div key={s.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-100">
+                              <div key={s.id} className="flex justify-between items-center p-2 sm:p-3 bg-gray-50 rounded-lg border border-gray-100 text-sm">
                                 <span className="font-medium">{s.name}</span>
                                 <span className="font-bold text-copper-red">{formatPrice(s.price)}</span>
                               </div>
@@ -517,7 +522,7 @@ function ReservarForm() {
                             {selectedPromotions.map(promoId => {
                               const promo = promotionsData.find(p => String(p.id) === promoId);
                               return promo ? (
-                                <div key={promo.id} className="flex justify-between items-center p-3 bg-pink-50 rounded-lg border border-pink-100">
+                                <div key={promo.id} className="flex justify-between items-center p-2 sm:p-3 bg-pink-50 rounded-lg border border-pink-100 text-sm">
                                   <div>
                                     <span className="font-medium text-pink-900">{promo.name}</span>
                                     <p className="text-xs text-pink-700">{promo.description}</p>
@@ -530,7 +535,7 @@ function ReservarForm() {
 
                         <div className="flex justify-end items-center gap-4 pt-2 border-t mt-2">
                           <div className="text-sm text-gray-500">Duración aprox: {duration} min</div>
-                          <div className="text-lg font-bold">Total: <span className="text-copper-red">{formatPrice(total)}</span></div>
+                          <div className="text-base sm:text-lg font-bold">Total: <span className="text-copper-red">{formatPrice(total)}</span></div>
                         </div>
                       </div>
                     )}
@@ -541,7 +546,7 @@ function ReservarForm() {
                   <div className="grid lg:grid-cols-3 gap-6">
                     <div className="lg:col-span-2 space-y-6">
                       <Card className="bg-white/85 backdrop-blur-sm">
-                        <CardContent className="p-6 space-y-6">
+                        <CardContent className="p-4 sm:p-6 space-y-6">
                           <div>
                             <h3 className="font-semibold text-lg mb-3 flex items-center gap-2 justify-center lg:justify-start">
                               <Calendar className="text-copper-red" />
@@ -556,16 +561,16 @@ function ReservarForm() {
                                   <button
                                     key={index}
                                     onClick={() => setSelectedDate(dateStr)}
-                                    className={`p-4 rounded-xl text-center transition-all border ${isSelected
+                                    className={`p-2 sm:p-3 md:p-4 rounded-xl text-center transition-all border ${isSelected
                                         ? "bg-copper-red text-white shadow-lg border-copper-red"
                                         : "bg-gray-50 hover:bg-gray-100 border-transparent"
                                       }`}
                                   >
-                                    <div className="text-xs font-semibold mb-1">
+                                    <div className="text-[10px] sm:text-xs font-semibold mb-1">
                                       {display.day}
                                     </div>
-                                    <div className="text-2xl font-bold">{display.date}</div>
-                                    <div className="text-xs mt-1">{display.month}</div>
+                                    <div className="text-lg sm:text-xl md:text-2xl font-bold">{display.date}</div>
+                                    <div className="text-[10px] sm:text-xs mt-1">{display.month}</div>
                                   </button>
                                 );
                               })}
@@ -593,7 +598,7 @@ function ReservarForm() {
                                       <button
                                         key={time}
                                         onClick={() => setSelectedTime(time)}
-                                        className={`p-3 rounded-lg text-center transition-all border ${isSelected
+                                        className={`p-2 sm:p-3 rounded-lg text-center text-sm transition-all border ${isSelected
                                             ? "bg-copper-red text-white shadow-lg border-copper-red"
                                             : "bg-gray-50 hover:bg-gray-100 border-transparent"
                                           }`}
@@ -614,7 +619,7 @@ function ReservarForm() {
                       </Card>
 
                       <Card className="bg-white/85 backdrop-blur-sm">
-                        <CardContent className="p-6">
+                        <CardContent className="p-4 sm:p-6">
                           <h3 className="font-semibold text-lg mb-4 text-center lg:text-left">
                             Elige tu estilista
                           </h3>
@@ -632,14 +637,14 @@ function ReservarForm() {
                                 >
                                   <CardContent className="p-5 text-center lg:text-left space-y-1">
                                     <div className="flex items-center justify-between gap-2">
-                                      <h3 className="font-semibold text-base text-[#1f1a1c]">
+                                      <h3 className="font-semibold text-sm sm:text-base text-[#1f1a1c]">
                                         {staff.name}
                                       </h3>
                                       {isSelected && (
                                         <CheckCircle2 className="text-copper-red" size={18} />
                                       )}
                                     </div>
-                                    <p className="text-sm text-gray-600">{staff.specialty || 'Especialista'}</p>
+                                    <p className="text-xs sm:text-sm text-gray-600">{staff.specialty || 'Especialista'}</p>
                                   </CardContent>
                                 </Card>
                               );
@@ -652,8 +657,8 @@ function ReservarForm() {
                     {/* Summary Sidebar */}
                     <div className="lg:col-span-1">
                       <Card className="bg-white/90 backdrop-blur-sm sticky top-24 border-copper-red/20 shadow-lg">
-                        <CardContent className="p-6 space-y-4">
-                          <h3 className="font-semibold text-lg border-b pb-2">Resumen</h3>
+                        <CardContent className="p-4 sm:p-6 space-y-4">
+                          <h3 className="font-semibold text-base sm:text-lg border-b pb-2">Resumen</h3>
 
                           {/* Selected Services */}
                           {selectedServices.length > 0 && (
@@ -738,10 +743,10 @@ function ReservarForm() {
                     <p className="text-sm">{error}</p>
                   </div>
                 )}
-                <div className="grid lg:grid-cols-2 gap-8">
-                  <Card className="bg-white/80 backdrop-blur-sm">
-                    <CardContent className="p-8">
-                      <h3 className="font-semibold text-xl mb-6">
+                <div className="grid lg:grid-cols-2 gap-6">
+                  <Card className="bg-white/80 backdrop-blur-sm order-2 lg:order-1">
+                    <CardContent className="p-5 sm:p-8">
+                      <h3 className="font-semibold text-lg sm:text-xl mb-4 sm:mb-6">
                         Información de Contacto
                       </h3>
                       <div className="space-y-4">
@@ -790,9 +795,9 @@ function ReservarForm() {
                     </CardContent>
                   </Card>
 
-                  <Card className="bg-white/80 backdrop-blur-sm">
-                    <CardContent className="p-8">
-                      <h3 className="font-semibold text-xl mb-6">
+                  <Card className="bg-white/80 backdrop-blur-sm order-1 lg:order-2">
+                    <CardContent className="p-5 sm:p-8">
+                      <h3 className="font-semibold text-lg sm:text-xl mb-4 sm:mb-6">
                         Resumen de tu Reserva
                       </h3>
                       <div className="space-y-6">

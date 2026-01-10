@@ -7,6 +7,10 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 // Cliente público (RLS protege).
 const supabaseAnon = createClient(supabaseUrl, supabaseAnonKey);
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseService = supabaseServiceKey
+  ? createClient(supabaseUrl, supabaseServiceKey)
+  : null;
 
 // Helper: usa sesión de usuario; si no hay, retorna público (para permitir reservas públicas).
 async function getSupabaseForRequest(requireAuth = false) {
@@ -30,7 +34,12 @@ export async function POST(request: Request) {
     const date = body.date || body.fecha;
     const startTime = body.startTime || body.hora;
     const endTime = body.endTime;
-    const serviceIds = body.serviceIds || body.servicios;
+    const rawServiceIds = body.serviceIds ?? body.servicios;
+    const serviceIds = Array.isArray(rawServiceIds)
+      ? rawServiceIds
+      : typeof rawServiceIds === "string"
+        ? rawServiceIds.split(",").map((id: string) => id.trim()).filter(Boolean)
+        : [];
     const customerName = body.customerName || body.clientName || body.clienteNombre;
     const customerPhone = body.customerPhone || body.clientPhone || body.clienteTelefono;
     const customerEmail = body.customerEmail || body.clientEmail || body.clienteEmail;
@@ -46,7 +55,7 @@ export async function POST(request: Request) {
 
     // Usar cliente autenticado si hay sesión (para admin), o service role/anon para la web pública
     // NOTA: Se requiere haber ejecutado el SQL 'ALLOW_PUBLIC_BOOKINGS.sql' para que funcione sin Service Role
-    const supabase = await getSupabaseForRequest();
+    const supabase = supabaseService ?? await getSupabaseForRequest();
 
     // Calculate endTime if not provided
     let calculatedEndTime = endTime;
