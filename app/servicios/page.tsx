@@ -199,11 +199,11 @@ export default function ServicesPage() {
               >
                 <button
                   onClick={() => toggleCategory('promotions')}
-                  className="w-full flex items-center justify-between p-6 hover:bg-pink-50/50 transition-colors text-left"
+                  className="w-full flex items-center justify-between p-4 sm:p-6 hover:bg-pink-50/50 transition-colors text-left"
                 >
                   <div>
-                    <h2 className="text-2xl font-times font-bold text-pink-800 flex items-center gap-3">
-                      <Sparkles className="text-pink-600" size={24} />
+                    <h2 className="text-lg sm:text-2xl font-times font-bold text-pink-800 flex items-center gap-3">
+                      <Sparkles className="text-pink-600 h-5 w-5 sm:h-6 sm:w-6" />
                       Promociones Especiales
                       <Badge className="text-xs font-semibold bg-pink-600 text-white hover:bg-pink-700 border-none px-3 py-1 leading-tight flex items-center gap-1">
                         <span className="inline-block">{promotions.length}</span>
@@ -228,12 +228,12 @@ export default function ServicesPage() {
                       transition={{ duration: 0.3 }}
                       className="overflow-hidden"
                     >
-                      <div className="p-6 pt-0 border-t border-pink-100">
-                        <div className="grid gap-4 mt-4">
+                      <div className="p-4 sm:p-6 pt-0 border-t border-pink-100">
+                        <div className="grid gap-3 sm:gap-4 mt-4">
                           {promotions.map((promo) => (
                             <div
                               key={promo.id}
-                              className="flex flex-col md:flex-row md:items-center justify-between p-4 bg-white rounded-lg border border-pink-100 hover:border-pink-300 transition-colors group shadow-sm"
+                              className="flex flex-col md:flex-row md:items-center justify-between p-3 sm:p-4 bg-white rounded-lg border border-pink-100 hover:border-pink-300 transition-colors group shadow-sm"
                             >
                               <div className="flex-1 pr-4">
                                 <div className="flex items-center gap-2 mb-1">
@@ -242,7 +242,7 @@ export default function ServicesPage() {
                                     <Tag size={14} className="text-pink-500" />
                                   </h3>
                                 </div>
-                                <p className="text-gray-600 text-sm mb-2">
+                                <p className="text-gray-600 text-xs sm:text-sm mb-2">
                                   {promo.description}
                                 </p>
                                 {promo.valid_until && (
@@ -251,15 +251,15 @@ export default function ServicesPage() {
                                   </p>
                                 )}
                               </div>
-                              <div className="flex items-center justify-between md:justify-end gap-4 mt-4 md:mt-0 min-w-[140px]">
+                              <div className="flex items-center justify-between md:justify-end gap-3 sm:gap-4 mt-3 sm:mt-4 md:mt-0 min-w-[120px] sm:min-w-[140px]">
                                 <div className="text-right">
                                   {promo.discount_amount && (
-                                    <span className="text-lg font-bold text-pink-600 block">
+                                    <span className="text-base sm:text-lg font-bold text-pink-600 block">
                                       -${promo.discount_amount}
                                     </span>
                                   )}
                                   {promo.discount_percentage && (
-                                    <span className="text-lg font-bold text-pink-600 block">
+                                    <span className="text-base sm:text-lg font-bold text-pink-600 block">
                                       -{promo.discount_percentage}%
                                     </span>
                                   )}
@@ -269,7 +269,7 @@ export default function ServicesPage() {
                                   className={`${selectedPromotions.includes(String(promo.id))
                                     ? "bg-pink-600 hover:bg-pink-700 text-white"
                                     : "bg-white text-pink-600 border border-pink-200 hover:bg-pink-50"
-                                    }`}
+                                    } text-xs sm:text-sm`}
                                   onClick={() => togglePromotion(String(promo.id))}
                                 >
                                   {selectedPromotions.includes(String(promo.id)) ? "Seleccionada" : "Seleccionar"}
@@ -295,10 +295,10 @@ export default function ServicesPage() {
               >
                 <button
                   onClick={() => toggleCategory(category.id)}
-                  className="w-full flex items-center justify-between p-6 bg-white hover:bg-gray-50 transition-colors text-left"
+                  className="w-full flex items-center justify-between p-4 sm:p-6 bg-white hover:bg-gray-50 transition-colors text-left"
                 >
                   <div>
-                    <h2 className="text-2xl font-times font-bold text-gray-900 flex items-center gap-3">
+                    <h2 className="text-lg sm:text-2xl font-times font-bold text-gray-900 flex items-center gap-3">
                       {category.name}
                       <Badge className="text-xs font-normal bg-pink-50 text-pink-700 hover:bg-pink-100">
                         {category.services.length} servicios
@@ -324,12 +324,12 @@ export default function ServicesPage() {
                       transition={{ duration: 0.3 }}
                       className="overflow-hidden"
                     >
-                      <div className="p-6 pt-0 border-t border-gray-100 bg-gray-50/30">
-                        <div className="grid gap-4 mt-4">
+                      <div className="p-4 sm:p-6 pt-0 border-t border-gray-100 bg-gray-50/30">
+                        <div className="grid gap-3 sm:gap-4 mt-4">
                           {category.services.map((service) => (
                             <div
                               key={service.id}
-                              className="flex flex-col md:flex-row md:items-center justify-between p-4 bg-white rounded-lg border border-gray-100 hover:border-pink-200 transition-colors group"
+                              className="flex flex-col md:flex-row md:items-center justify-between p-3 sm:p-4 bg-white rounded-lg border border-gray-100 hover:border-pink-200 transition-colors group"
                             >
                               <div className="flex-1 md:pr-4 text-center md:text-left">
                                 <div className="flex items-center justify-center md:justify-start gap-2 mb-1">
@@ -337,7 +337,7 @@ export default function ServicesPage() {
                                     {service.name}
                                   </h3>
                                 </div>
-                                <p className="text-gray-600 text-sm mb-2">
+                                <p className="text-gray-600 text-xs sm:text-sm mb-2">
                                   {service.description}
                                 </p>
                                 <div className="flex items-center justify-center md:justify-start gap-4 text-xs text-gray-500">
@@ -347,8 +347,8 @@ export default function ServicesPage() {
                                   </span>
                                 </div>
                               </div>
-                              <div className="flex items-center justify-center md:justify-end gap-4 mt-4 md:mt-0 min-w-[140px] w-full md:w-auto">
-                                <span className="text-lg font-bold text-gray-900">
+                              <div className="flex items-center justify-center md:justify-end gap-3 sm:gap-4 mt-3 sm:mt-4 md:mt-0 min-w-[120px] sm:min-w-[140px] w-full md:w-auto">
+                                <span className="text-base sm:text-lg font-bold text-gray-900">
                                   ${service.price}
                                 </span>
                                 <Button
@@ -356,7 +356,7 @@ export default function ServicesPage() {
                                   className={`${selectedServices.includes(service.id)
                                     ? "bg-pink-600 hover:bg-pink-700 text-white"
                                     : "bg-white text-black border border-gray-300 hover:bg-gray-50"
-                                    }`}
+                                    } text-xs sm:text-sm`}
                                   onClick={() => toggleService(service.id)}
                                 >
                                   {selectedServices.includes(service.id) ? "Seleccionado" : "Seleccionar"}
@@ -386,7 +386,7 @@ export default function ServicesPage() {
           >
             <div className="container mx-auto flex items-center justify-between max-w-4xl">
               <div>
-                <p className="font-bold text-gray-900 text-lg">
+                <p className="font-bold text-gray-900 text-base sm:text-lg">
                   {selectedServices.length + selectedPromotions.length} item{(selectedServices.length + selectedPromotions.length) !== 1 ? 's' : ''} seleccionado{(selectedServices.length + selectedPromotions.length) !== 1 ? 's' : ''}
                 </p>
                 <p className="text-sm text-gray-500 hidden sm:block">
@@ -394,7 +394,7 @@ export default function ServicesPage() {
                 </p>
               </div>
               <Link href={`/reservar?services=${selectedServices.join(',')}&promotions=${selectedPromotions.join(',')}`}>
-                <Button className="bg-black hover:bg-gray-800 text-white px-8 py-6 text-lg rounded-full font-semibold shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5">
+                <Button className="bg-black hover:bg-gray-800 text-white px-5 py-3 sm:px-8 sm:py-6 text-sm sm:text-lg rounded-full font-semibold shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5">
                   Reservar Cita
                 </Button>
               </Link>
