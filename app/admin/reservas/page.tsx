@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense, useCallback } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -175,9 +175,6 @@ function AdminReservasContent() {
   const [customerStatus, setCustomerStatus] = useState<{ exists: boolean; customer?: any } | null>(null);
   const [checkingCustomer, setCheckingCustomer] = useState(false);
   const [savingCustomer, setSavingCustomer] = useState(false);
-  const [recurrenceDays, setRecurrenceDays] = useState<string>("");
-  const [suggestedDate, setSuggestedDate] = useState<string | null>(null);
-  const [lastCustomerBooking, setLastCustomerBooking] = useState<Booking | null>(null);
 
   const [formData, setFormData] = useState({
     clientName: "",
@@ -363,57 +360,12 @@ function AdminReservasContent() {
     }
   };
 
-  const findLastBookingForCustomer = useCallback((customerId: string) => {
-    const relevant = bookings
-      .filter((b) => b.customerId === customerId && b.status !== "cancelled")
-      .slice()
-      .sort((a, b) => {
-        const dateA = new Date(`${a.date}T${normalizeTime(a.startTime)}`).getTime();
-        const dateB = new Date(`${b.date}T${normalizeTime(b.startTime)}`).getTime();
-        return dateB - dateA;
-      });
-    return relevant[0] || null;
-  }, [bookings]);
-
   useEffect(() => {
     const customerIdParam = searchParams?.get("customerId");
     if (customerIdParam) {
       prefillCustomer(customerIdParam);
     }
   }, [searchParams]);
-
-  useEffect(() => {
-    if (!formData.customerId) {
-      setLastCustomerBooking(null);
-      return;
-    }
-    const last = findLastBookingForCustomer(formData.customerId);
-    setLastCustomerBooking(last);
-  }, [formData.customerId, bookings, findLastBookingForCustomer]);
-
-  useEffect(() => {
-    if (!formData.customerId || !recurrenceDays) {
-      setSuggestedDate(null);
-      return;
-    }
-
-    const baseDate = lastCustomerBooking
-      ? new Date(`${lastCustomerBooking.date}T${normalizeTime(lastCustomerBooking.startTime)}`)
-      : new Date();
-
-    baseDate.setDate(baseDate.getDate() + Number(recurrenceDays));
-    setSuggestedDate(baseDate.toISOString().split("T")[0]);
-  }, [formData.customerId, recurrenceDays, lastCustomerBooking]);
-
-  const applySuggestedDate = () => {
-    if (!suggestedDate) return;
-    setFormData((prev) => ({
-      ...prev,
-      date: suggestedDate,
-      startTime: prev.startTime || normalizeTime(lastCustomerBooking?.startTime || "09:00"),
-      staffId: prev.staffId || lastCustomerBooking?.staffId || "",
-    }));
-  };
 
   const filteredBookings = bookings
     .filter((booking) => {
@@ -879,44 +831,6 @@ function AdminReservasContent() {
                 )}
               </div>
 
-              {formData.customerId && (
-                <div className="border rounded-lg p-3 bg-white/70 space-y-2">
-                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <div>
-                      <p className="text-sm font-medium text-gray-700">Frecuencia sugerida</p>
-                      <p className="text-xs text-gray-500">Aplica un recordatorio rápido (10, 15 o 30 días)</p>
-                    </div>
-                    <Select value={recurrenceDays} onValueChange={setRecurrenceDays}>
-                      <SelectTrigger className="w-36">
-                        <SelectValue placeholder="Elegir" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="10">Cada 10 días</SelectItem>
-                        <SelectItem value="15">Cada 15 días</SelectItem>
-                        <SelectItem value="30">Cada 30 días</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {lastCustomerBooking && (
-                    <p className="text-xs text-gray-600">
-                      Última cita: {new Date(lastCustomerBooking.date).toLocaleDateString("es-ES")}{" "}
-                      {formatTime12Hour(normalizeTime(lastCustomerBooking.startTime))} con{" "}
-                      {lastCustomerBooking.staff?.name || "Sin asignar"}
-                    </p>
-                  )}
-
-                  {suggestedDate && (
-                    <div className="flex items-center justify-between gap-3 flex-wrap">
-                      <p className="text-sm text-gray-800">
-                        Fecha sugerida: <span className="font-semibold">{new Date(suggestedDate).toLocaleDateString("es-ES")}</span>
-                      </p>
-                      <Button type="button" variant="outline" size="sm" onClick={applySuggestedDate}>
-                        Usar fecha sugerida
-                      </Button>
-                    </div>
-                  )}
-                </div>
               )}
 
               {/* Notas */}
