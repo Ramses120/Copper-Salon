@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState, Suspense, useRef } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import Footer from "@/components/Footer";
@@ -82,6 +82,18 @@ function ReservarForm() {
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
 
+  const topRef = useRef<HTMLDivElement | null>(null);
+  const prevStepRef = useRef(step);
+
+  const scrollToTop = () => {
+    if (typeof window === "undefined") return;
+    if (topRef.current) {
+      topRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   // Customer check state
   const [customerStatus, setCustomerStatus] = useState<{ exists: boolean; name?: string } | null>(null);
   const [checkingCustomer, setCheckingCustomer] = useState(false);
@@ -94,7 +106,7 @@ function ReservarForm() {
         const [servicesRes, staffRes, promotionsRes] = await Promise.all([
           fetch("/api/services"),
           fetch("/api/staff"),
-          fetch("/api/promotions"),
+          fetch("/api/promotions/active"),
         ]);
 
         if (servicesRes.ok) {
@@ -125,7 +137,19 @@ function ReservarForm() {
 
         if (promotionsRes.ok) {
           const promotionsJson = await promotionsRes.json();
-          setPromotionsData(promotionsJson || []);
+          const rawPromos = Array.isArray(promotionsJson)
+            ? promotionsJson
+            : promotionsJson.promotions || [];
+          const normalizedPromos = rawPromos.map((promo: any) => ({
+            id: promo.id,
+            name: promo.name || promo.title || "",
+            description: promo.description || "",
+            special_price: promo.special_price ?? promo.discount_amount ?? null,
+            duration_minutes: promo.duration_minutes ?? promo.duration ?? 0,
+            discount: promo.discount ?? promo.discount_percentage ?? 0,
+            type: promo.type || (promo.discount_percentage ? "percentage" : "fixed"),
+          }));
+          setPromotionsData(normalizedPromos);
         }
       } catch (error) {
         console.error("Error loading data:", error);
@@ -220,6 +244,19 @@ function ReservarForm() {
   //   }, 800); // Debounce 800ms
   //   return () => clearTimeout(timer);
   // }, [clientInfo.telefono]);
+
+  useEffect(() => {
+    if (prevStepRef.current !== step) {
+      scrollToTop();
+      prevStepRef.current = step;
+    }
+  }, [step]);
+
+  useEffect(() => {
+    if (submitted) {
+      scrollToTop();
+    }
+  }, [submitted]);
 
   // Cargar horarios disponibles
   useEffect(() => {
@@ -382,12 +419,12 @@ function ReservarForm() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-copper-gradient pt-24 lg:pt-32">
+      <main ref={topRef} className="min-h-screen bg-copper-gradient pt-24 lg:pt-32">
         <section className="pt-32 pb-20">
           <div className="container mx-auto px-4">
             <div className="max-w-2xl mx-auto">
               <Card className="bg-white/80 backdrop-blur-sm border-none shadow-2xl">
-                <CardContent className="p-12 text-center">
+                <CardContent className="p-6 sm:p-10 text-center">
                   <Loader2 className="mx-auto mb-4 animate-spin text-copper-red" size={48} />
                   <p className="text-lg text-gray-600">Cargando servicios y estilistas...</p>
                 </CardContent>
@@ -402,22 +439,22 @@ function ReservarForm() {
 
   if (submitted) {
     return (
-      <main className="min-h-screen bg-copper-gradient pt-24 lg:pt-32">
+      <main ref={topRef} className="min-h-screen bg-copper-gradient pt-24 lg:pt-32">
         <section className="pt-32 pb-20">
           <div className="container mx-auto px-4">
             <div className="max-w-2xl mx-auto">
               <Card className="bg-white/80 backdrop-blur-sm border-none shadow-2xl">
-                <CardContent className="p-12 text-center">
-                  <div className="bg-green-50 rounded-full w-24 h-24 mx-auto mb-6 flex items-center justify-center animate-scale-in">
-                    <CheckCircle2 className="text-green-500" size={64} />
+                <CardContent className="p-6 sm:p-10 text-center">
+                  <div className="bg-green-50 rounded-full w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-5 flex items-center justify-center animate-scale-in">
+                    <CheckCircle2 className="text-green-500" size={44} />
                   </div>
-                  <h1 className="font-times text-4xl font-bold text-gray-900 mb-4">
+                  <h1 className="font-times text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-3">
                     ¡Solicitud Recibida!
                   </h1>
-                  <p className="text-lg text-gray-600 mb-4">
+                  <p className="text-sm sm:text-base text-gray-600 mb-4">
                     Gracias por elegir Copper Salon, en breve revisaremos tu confirmación y te llamaremos.
                   </p>
-                  <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded mb-8">
+                  <div className="bg-blue-50 border-l-4 border-blue-500 p-3 sm:p-4 rounded mb-6">
                     <p className="text-blue-900 font-semibold mb-1">
                       📞 Te llamaremos pronto para confirmar
                     </p>
@@ -429,13 +466,20 @@ function ReservarForm() {
                     <h3 className="font-semibold text-gray-900 mb-4">Resumen de tu reserva:</h3>
                     <div className="space-y-2 text-sm">
                       <p><span className="font-semibold">Servicios:</span> {getSelectedServices().map(s => s.name).join(", ")}</p>
+                      {selectedPromotions.length > 0 && (
+                        <p><span className="font-semibold">Promociones:</span> {selectedPromotions.map((promoId, index) => {
+                          const promo = promotionsData.find(p => String(p.id) === promoId);
+                          return promo?.name || "Promoción seleccionada";
+                        }).join(", ")}</p>
+                      )}
+
                       <p><span className="font-semibold">Estilista:</span> {getSelectedStaffInfo()?.name}</p>
                       <p><span className="font-semibold">Fecha:</span> {selectedDate}</p>
                       <p><span className="font-semibold">Hora:</span> {formatDisplayTime(selectedTime)}</p>
                       <p><span className="font-semibold">Duración estimada:</span> {duration} minutos</p>
                     </div>
                   </div>
-                  <p className="text-sm text-gray-500 mb-6">
+                  <p className="text-xs sm:text-sm text-gray-500 mb-5">
                     Te llamaremos al <span className="font-semibold">{clientInfo.telefono}</span> para confirmar tu cita.
                   </p>
                   <Button variant="copper" asChild>
@@ -452,7 +496,7 @@ function ReservarForm() {
   }
 
   return (
-    <main className="min-h-screen bg-copper-gradient pt-24 lg:pt-32">
+    <main ref={topRef} className="min-h-screen bg-copper-gradient pt-24 lg:pt-32">
       <section className="pt-32 pb-20">
         <div className="container mx-auto px-4">
           <div className="max-w-6xl mx-auto">
@@ -519,16 +563,18 @@ function ReservarForm() {
 
                         {selectedPromotions.length > 0 && (
                           <div className="grid gap-3 sm:grid-cols-2">
-                            {selectedPromotions.map(promoId => {
+                            {selectedPromotions.map((promoId, index) => {
                               const promo = promotionsData.find(p => String(p.id) === promoId);
-                              return promo ? (
-                                <div key={promo.id} className="flex justify-between items-center p-2 sm:p-3 bg-pink-50 rounded-lg border border-pink-100 text-sm">
+                              const promoName = promo?.name || "Promoción seleccionada";
+                              const promoDesc = promo?.description || "";
+                              return (
+                                <div key={promo?.id ?? `promo-${promoId}-${index}`} className="flex justify-between items-center p-2 sm:p-3 bg-pink-50 rounded-lg border border-pink-100 text-sm">
                                   <div>
-                                    <span className="font-medium text-pink-900">{promo.name}</span>
-                                    <p className="text-xs text-pink-700">{promo.description}</p>
+                                    <span className="font-medium text-pink-900">{promoName}</span>
+                                    {promoDesc && <p className="text-xs text-pink-700">{promoDesc}</p>}
                                   </div>
                                 </div>
-                              ) : null;
+                              );
                             })}
                           </div>
                         )}
@@ -829,16 +875,18 @@ function ReservarForm() {
                               PROMOCIONES
                             </h4>
                             <div className="space-y-3">
-                              {selectedPromotions.map(promoId => {
+                              {selectedPromotions.map((promoId, index) => {
                                 const promo = promotionsData.find(p => String(p.id) === promoId);
-                                return promo ? (
-                                  <div key={promo.id} className="text-sm">
+                                const promoName = promo?.name || "Promoción seleccionada";
+                                const promoDesc = promo?.description || "";
+                                return (
+                                  <div key={promo?.id ?? `promo-${promoId}-${index}`} className="text-sm">
                                     <div className="flex justify-between">
-                                      <span className="font-semibold text-copper-red">{promo.name}</span>
+                                      <span className="font-semibold text-copper-red">{promoName}</span>
                                     </div>
-                                    <p className="text-xs text-gray-500 mt-1">{promo.description}</p>
+                                    {promoDesc && <p className="text-xs text-gray-500 mt-1">{promoDesc}</p>}
                                   </div>
-                                ) : null;
+                                );
                               })}
                             </div>
                           </div>
